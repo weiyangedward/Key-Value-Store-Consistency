@@ -1,14 +1,14 @@
 Key-Value Store Consistency
 ===========================
 
-Processes:
+Processes
 ----------
 ::
 
 	1. server.py
 	2. client.py
 
-Consistency Models:
+Consistency Models
 -------------------
 ::
 
@@ -16,7 +16,7 @@ Consistency Models:
 	2. linearizability.py
 
 
-Ordering Model:
+Ordering Model
 ---------------
 ::
 
