@@ -27,7 +27,7 @@ class TotalOrderChannel(Channel): # inherit from Channel
         self.consistency = None
         self.variables = variables
 
-    # unicast(TotalOrderMessage, int)
+    # unicast(Message, int)
     def unicast(self, message, destination):
         delay_time = random.uniform(self.min_delay, self.max_delay)
         print('delay unicast with {0:.2f}s '.format(delay_time))
@@ -50,7 +50,10 @@ class TotalOrderChannel(Channel): # inherit from Channel
     # multicast(str)
     def multicast(self, message, consistency):
         self.consistency = consistency
-        # Generate a unique identifer ranged from 1 - MAX_INT
+        """
+            Generate a random identifer ranged from 1 - MAX_INT
+            as a message ID
+        """
         id = random.randint(1, sys.maxint)
 
         for to_pid in self.process_info.keys():
@@ -59,6 +62,9 @@ class TotalOrderChannel(Channel): # inherit from Channel
 
     # B-Multicast order message, only called by if the process is sequencer
     def sequencer_multicast(self, id):
+        """
+            SqeuncerMessage(randMessageID, s_sequencer.value)
+        """
         m = SqeuncerMessage(id, self.s_sequencer.value)
 
         for to_pid in self.process_info.keys():
@@ -67,6 +73,7 @@ class TotalOrderChannel(Channel): # inherit from Channel
         with self.s_sequencer.get_lock():
             self.s_sequencer.value += 1
 
+    # move unicast_receive from process to here
     def unicast_receive(self, source, message, client_port, var, action):
         print (message.receive_str())
         if (action == "w"):
@@ -74,14 +81,19 @@ class TotalOrderChannel(Channel): # inherit from Channel
             if (self.w_ack[(client_port, var)] >= self.W):
                 self.consistency.unicast(message + var + str(self.variables[var]))
 
+    """
+        channel receive message
+        recv(str, address)
+    """
     def recv(self, data, from_addr):
         if data:
             data_args = data.split()
 
-            # Multicast Message
+            """
+                Multicast Message
+            """
             if len(data_args) == 4:
-                from_id, to_id, id, message = \
-                    int(data_args[0]), int(data_args[1]), int(data_args[3]), data_args[2]
+                from_id, to_id, id, message = int(data_args[0]), int(data_args[1]), int(data_args[3]), data_args[2]
                 # ack get message
                 print("get message %s from %d" % (message, from_id))
 
@@ -96,8 +108,9 @@ class TotalOrderChannel(Channel): # inherit from Channel
 
                 # check our sequence message to queue to see if we already received the corresponding sequence message
                 self.check_seq_queue(self.r_sequencer.value)
-
-            # Sequencer's order message
+            """
+                Sequencer's order message
+            """
             elif len(data_args) == 2:
                 m_id, sequence = int(data_args[0]), int(data_args[1])
                 seq_m = SqeuncerMessage(m_id, sequence)
@@ -129,7 +142,9 @@ class TotalOrderChannel(Channel): # inherit from Channel
                 m = Message(data_args[0], data_args[1], data_args[2])
                 self.process.unicast_receive(m.from_id, m)
 
-    # Check if the process received a message with given id.
+    """
+        Check if the process received a message with given id.
+    """
     def check_queue(self, id):
         if self.hb_queue:
             for queued_message in self.hb_queue:
@@ -140,11 +155,13 @@ class TotalOrderChannel(Channel): # inherit from Channel
         else:
             return None
 
-    # Check our queue for sequence number,
-    # if we have an expected sequence number stored in the queue,
-    # then we check if we have the corresponding message received.
-    # If both conditions are met, we pop the sequence number the message out of our queues.
-    # check_seq_queue(int)
+    """
+        Check our queue for sequence number,
+        if we have an expected sequence number stored in the queue,
+        then we check if we have the corresponding message received.
+        If both conditions are met, we pop the sequence number the message out of our queues.
+        check_seq_queue(int sequence_number)
+    """
     def check_seq_queue(self, seq):
         # if the sequence message queue is not empty
         if self.seq_queue:

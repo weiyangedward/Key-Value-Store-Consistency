@@ -3,8 +3,9 @@ import multiprocessing
 import threading
 import socket
 import sys
-from message import Message, TotalOrderMessage, SqeuncerMessage
+from message import Message, TotalOrderMessage, SqeuncerMessage, EventualConsistencyMessage, LinearizabilityConsistencyMessage
 from channel import Channel
+from variableStored import VariableStored
 
 
 class LinearizabilityConsistency(Channel): # inherit from Channel

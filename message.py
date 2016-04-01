@@ -44,7 +44,9 @@ class TotalOrderMessage(Message):
 
 
 class SqeuncerMessage:
-
+    """
+        __init__(randMessageID, s_sequencer.value)
+    """
     def __init__(self, id, sequence):
         self.id = id
         self.sequence = sequence
@@ -53,16 +55,17 @@ class SqeuncerMessage:
         return 'Sent sequencer message'
 
     def __str__(self):
-        return '{} {}'.format(self.id, self.sequence)
+        return '{} {} {}'.format("seq", self.id, self.sequence)
 
 class EventualConsistencyMessage(Message):
 
-    def __init__(self, from_id, to_id, id, content=''):
+    def __init__(self, from_id, to_id, id, content='', header):
         super(EventualConsistencyMessage, self).__init__(from_id, to_id, content)
         self.id = id
+        self.header = header
 
     def __str__(self):
-        return '{} {} {} {}'.format(self.from_id, self.to_id, self.content, self.id)
+        return '{} {} {} {}'.format(self.header, self.from_id, self.to_id, self.content, self.id)
 
 
 class LinearizabilityConsistencyMessage(Message):
