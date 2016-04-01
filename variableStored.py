@@ -83,5 +83,5 @@ class VariableStored(object):
 		print("Dumping server %d variables:" % (id))
 		for var_ascii in range(97,(97+26)):
 			var_chr = str(unichr(var_ascii))
-			print(self.variables[var_chr])
+			print(var_chr, self.variables[var_chr])
 
