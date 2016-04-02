@@ -29,6 +29,9 @@ To Run
 	Client:
 
 	python client.py [serverID]
+
+
+	Note that log file 'output_log*.txt' will be created in the same directory. New log info will be appended to the previous log file, you can delete log files before start the new run.
 	
 Quick Start
 -----------
