@@ -7,23 +7,6 @@
         4. launch Server thread to talk to client
         5. listen to manager command
 
-
-    class ServerThread(derived from multiprocessing.Process):
-
-        def __init__(server, client_id, conn):
-
-
-    class ReplicaThread(derived from multiprocessing.Process):
-
-        def __init__(server):
-            get server Address and Port info from configreader
-            set UDP connect
-
-        def run():
-            while true:
-                receiving message
-                self.server.consistency.recv(data, address)
-
     class Server(derived from multiprocessing.Process):
 
         def __init__(serverID, arg_consistency, variableStored, lock):
@@ -37,10 +20,20 @@
                 keep accepting client
                 launch a server thread for a client
 
+        def serverThread():
+
+        def replicaThread():
+            set UDP connect
+            while true:
+                receiving message
+                self.server.consistency.recv(data, address)
+
+
 """
 
-
 import multiprocessing
+from threading import Thread
+import sys
 import threading
 import socket
 import argparse
@@ -49,105 +42,27 @@ from variableStored import VariableStored
 from eventualConsistency import EventualConsistency
 from linearizabilityConsistency import LinearizabilityConsistency
 
-class ServerThread(multiprocessing.Process):
-    """
-        a server thread handles requests from a client
-    """
-    def __init__(self, server, client_port, conn):
-        super(ServerThread, self).__init__()
-        self.conn = conn
-        self.client_port = client_port
-        self.server = server
-    """
-        handle requests from a client
-    """
-    def run(self):
-        try:
-            while 1:
-                # data = self.conn.recv(4096) # receive message 
-                data, address = self.conn.recvfrom(4096)
-                print("receive %s from %d" % (data, client_port))
-                self.conn.send(("client " + str(client_port) + " say: " + data.decode()).encode())
-                self.server.consistency.recvClient(data, address, self.conn, self.lock)
-        except:
-            print("Lost a client")
-        self.conn.close()
-
-
-class ReplicaThread(multiprocessing.Process):
-    """ 
-        a replica thread talks to other server replicas
-    """
-    def __init__(self, server):
-        super(ReplicaThread, self).__init__() # call __init__ from multiprocessing.Process
-        
-        # Read config from file
-        self.process_info, self.addr_dict = server.process_info, server.addr_dict
-        self.address = server.address
-        self.ip, self.port = server.ip, server.port
-        self.server = server
-
-        """
-            Init a UDP socket
-        """
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(self.address)
-
-    """
-        receive message, override run()
-    """
-    def run(self):
-        try:
-            while True:
-                data, address = self.socket.recvfrom(4096)
-                """
-                    call server.consistency.recvReplica(), which will 
-                    handle the message received.
-                    The recvReplica() function will also invoke multicast/unicast
-                    to other server replicas
-                """
-                self.server.consistency.recvReplica(self, data, address)
-        except:
-            print("Disconnected from server replicas")
-
 
 class Server(multiprocessing.Process):
     """
         a server gets request from all clients and sends data back
     """
-    def __init__(self, serverID, arg_consistency, variableStored, lock, W, R):
+    def __init__(self, serverID, arg_consistency, W, R):
         super(Server, self).__init__()
         # get address and port info
-        self.process_info, self.addr_dict = configreader
-        .get_processes_info()
+        self.process_info, self.addr_dict = configreader.get_processes_info()
         self.address = self.process_info[serverID]
-        self.ip, self.port = address[0], address[1]
+        self.ip, self.port = self.address[0], self.address[1]
 
-        self.socket = None
-        self.variableStored = variableStored
         self.arg_consistency = arg_consistency
-        self.consistency = None
-        self.lock = lock
+        self.lock = multiprocessing.Lock()
         self.serverID = serverID
         self.W = W
         self.R = R
 
-    """
-        init consistency model
-    """
-    def setConsistency(self):
-        if (arg_consistency == "eventual"): # no sequencer for eventual consistency
-                self.consistency = EventualConsistency(self, self.serverID, self.process_info, self.addr_dict, self.variableStored, self.lock, W, R)
-        elif (arg_consistency == "linearizability"):
-            if (self.serverID == 1):
-                self.consistency = LinearizabilityConsistency(self, self.serverID, self.socket, self.process_info, self.addr_dict, True)
-            else:
-                self.consistency = LinearizabilityConsistency(self, self.serverID, self.socket, self.process_info, self.addr_dict)
-
-    """    
-        init TCP connect to clients 
-    """
-    def tcpConn(self):
+        """    
+            init TCP connect to clients 
+        """
         for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM, 0, socket.AI_PASSIVE):
             af, socktype, proto, canonname, sa = res
             try:
@@ -168,30 +83,80 @@ class Server(multiprocessing.Process):
             break
         if self.socket is None:
             print('could not open socket')
-            sys.exit(1)
+
+        """
+            init consistency model
+        """
+        if (self.arg_consistency == "eventual"):
+            if (self.serverID == 1):
+                self.consistency = EventualConsistency(self, self.serverID, self.process_info, self.addr_dict, self.W, self.R, self.lock, True)
+            else:
+                self.consistency = EventualConsistency(self, self.serverID, self.process_info, self.addr_dict, self.W, self.R, self.lock)
+        elif (self.arg_consistency == "linearizability"):
+            if (self.serverID == 1):
+                self.consistency = LinearizabilityConsistency(self, self.serverID, self.socket, self.process_info, self.addr_dict, True)
+            else:
+                self.consistency = LinearizabilityConsistency(self, self.serverID, self.socket, self.process_info, self.addr_dict)
+    
+
+
+    def recvClient(self, data, address, conn):
+        print("server recvClient...")
+        self.consistency.recvClient(data, address, conn)
+
+    def recvReplica(self, data, address):
+        print("server recvReplica...")
+        self.consistency.recvReplica(data, address)
 
     """
         init a thread for server replica
         init a new thread for every client
     """
     def run(self):
-        try:
-            # start process thread
-            t_replica = ReplicaThread(self)
-            t_replica.daemon = True # daemon thread does not prevent main program from exiting
-            t_replica.start()
-            # connect to TCP
-            tcpConn()
-            while(1):
-                conn, addr = self.s.accept() # accept
-                print('Connected by', addr) # addr = (host, port)
-                # init a server thread for a client
-                t_serverThread = ServerThread(addr[1], conn)
-                t_serverThread.daemon = True
-                t_serverThread.start()
-        except:
-            print("Server crashed")
+        # try:
+        # init replica thread
+        t_replica = Thread(target = self.replicaThread, args=())
+        t_replica.start()
 
+        while(1):
+            conn, addr = self.socket.accept() # accept
+            print('Connected by', addr) # addr = (host, port)
+            # init a server thread for a client
+            t_serverThread = Thread(target = self.serverThread, args=(addr[1], conn, ))
+            t_serverThread.start()
+        # except:
+        #     print("CTRL C occured")
+        # finally:
+        print("exit server thread")
+        self.socket.close()
+        t_replica.terminate()
+
+    # replicaThread function
+    def replicaThread(self):
+        process_info, addr_dict = self.process_info, self.addr_dict
+        address = self.address
+        ip, port = self.ip, self.port
+
+        socketUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        socketUDP.bind(address)
+        # try:
+        while True:
+            data, address = socketUDP.recvfrom(4096)
+            self.recvReplica(data, address)
+        # except:
+        #     print("CTRL C occured")
+        # finally:
+        print("exit replica thread")
+        socketUDP.close()
+
+    # serverThread function
+    def serverThread(self, client_port, conn):
+        while 1:
+            data, address = conn.recvfrom(4096)
+            if not data: break
+            print("receive from client %s at port %d" % (data, client_port))
+            self.recvClient(data, address, conn)
+        conn.close()
 
 def main():
     parser = argparse.ArgumentParser(description="replica server")
@@ -200,24 +165,25 @@ def main():
     parser.add_argument("W", help="number of w_ack indicates finished, default=1", type=int, default='1')
     parser.add_argument("R", help="number of r_ack indicates finished, default=1", type=int, default='1')
     args = parser.parse_args()
-    variableStored = VariableStored() # init variables stored in server
-    lock = multiprocessing.Lock()
+    # lock = multiprocessing.Lock()
 
     # start server thread
-    t_server = Server(args.id, args.consistency, variableStored, lock, W, R)
+    t_server = Server(args.id, args.consistency, args.W, args.R)
     t_server.daemon = True
     t_server.start()
 
     # replica talks to other replicas
     try:
-        while True:
+        while True and t_server.is_alive():
             cmd = raw_input()
             if cmd:
                 cmd_args = cmd.split()
-                if cmd_args[0] == "exit": 
-                    break;
+                if cmd_args[0] == "exit": break
     except KeyboardInterrupt:
         print("CTRL C occured")
+    finally:
+        print("exit server process")
+        t_server.terminate()
 
 if __name__ == '__main__':
     main()

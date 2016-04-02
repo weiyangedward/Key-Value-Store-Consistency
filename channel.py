@@ -26,7 +26,7 @@ class Channel(object):
         m = Message(self.pid, serverID, message)
         print(m.send_str())
         print('delay unicast with {0:.2f}s '.format(delay_time))
-        delayed_t = threading.Timer(delay_time, self.__unicast, (message,))
+        delayed_t = threading.Timer(delay_time, self.__unicastTCP, (message,))
         delayed_t.start()
 
     """
@@ -67,8 +67,12 @@ class Channel(object):
         recv(str)
     """
     def recv(self, data):
+        print("receive message from cliemt ", data)
         if data:
             data_args = data.split()
-            m = Message(data_args[0], data_args[1], data_args[2])
-            print (m.receive_str())
-            # self.process.unicast_receive(m.from_id, m)
+            tok, from_id, message_id, var, value, message_id = data_args[0], data_args[1], data_args[2], data_args[3], data_args[4], data_args[5]
+            print("received message from sever: ", data)
+            print("delivered message: ", data)
+            print(var, str(value))
+
+

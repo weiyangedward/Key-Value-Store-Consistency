@@ -59,13 +59,13 @@ class SqeuncerMessage:
 
 class EventualConsistencyMessage(Message):
 
-    def __init__(self, from_id, to_id, id, content='', header):
+    def __init__(self, from_id, to_id, id, content='', header=''):
         super(EventualConsistencyMessage, self).__init__(from_id, to_id, content)
         self.id = id
         self.header = header
 
     def __str__(self):
-        return '{} {} {} {}'.format(self.header, self.from_id, self.to_id, self.content, self.id)
+        return '{} {} {} {} {}'.format(self.header, self.from_id, self.to_id, self.content, self.id)
 
 
 class LinearizabilityConsistencyMessage(Message):

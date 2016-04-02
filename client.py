@@ -47,17 +47,16 @@
                 use channel.unicastTCP(serverID, self.socket, cmd)
 
 
-
-
 """
-
+import random
+import sys
+import time
 import multiprocessing
-from threading import Thread
+from threading import *
 import socket
 import argparse
 import configreader
 from channel import Channel
-from totalOrderChannel import TotalOrderChannel
 from variableStored import VariableStored
 
 
@@ -79,27 +78,15 @@ class Client(multiprocessing.Process):
         self.process_info, self.addr_dict = configreader.get_processes_info()
         self.total_server = configreader.get_total_servers()
         self.address = self.process_info[self.serverID]
-        self.ip, self.port = address[0], address[1]
-        self.socket = None # TCP socket
-        self.channel = None
-        self.batch_cmd = None
+        self.ip, self.port = self.address[0], self.address[1]
+        self.batch_cmd = ''
         self.client_id = client_id
 
-    """
-        Init unicast channel
-    """
-    def setChannel(self):
-            # client only has Regular channel
-            print 'client, no ordering'
-            # pass Client obj as arg to Channel
-            self.channel = Channel(self, self.client_id, self.socket, self.process_info, self.addr_dict)
-    
-    """
-        init TCP connect to server
-    """
-    def tcpConn(self):
+        """
+            init TCP connect to server
+        """
         self.address = self.process_info[self.serverID]
-        self.ip, self.port = address[0], address[1]
+        self.ip, self.port = self.address[0], self.address[1]
         for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM):
             af, socktype, proto, canonname, sa = res
             try:
@@ -118,26 +105,43 @@ class Client(multiprocessing.Process):
             print('could not open socket')
             sys.exit(1)
 
+        """
+            Init unicast channel
+        """
+        print 'client, no ordering'
+        # pass Client obj as arg to Channel
+        self.channel = Channel(self, self.client_id, self.socket, self.process_info, self.addr_dict)
+
     """
         override run(), receiving message from server
     """
     def run(self):
-        try:
-            tcpConn(self)
-            setChannel(self)
-            while True:
-                data, address = self.socket.recvfrom(4096)
-                # break if connected server crashed
-                if not data:
-                    break
-                self.channel.recv(data, address)
-        except:
-            # choose another server if the connected server is crashed
-            # handle server crash: pick a server with higher id
-            # relaunch run()
-            print("Disconnected from server")
-            self.serverID = (serverID + 1) % total_server
-            run()
+        # try:
+        while True:
+            data, address = self.socket.recvfrom(4096)
+            print("get server message: ", data)
+            # break if connected server crashed
+            if not data: break
+            self.channel.recv(data)
+        # except:
+        print("CTRL C occured")
+        # finally:
+        print("exit client thread")
+        self.socket.close()
+        # except:
+
+               # ====
+               # choose another server if the connected server is crashed
+               # handle server crash: pick a server with higher id
+               # relaunch run()
+               # ====
+
+            # print("Disconnected from server")
+        # try:
+        #     self.serverID = (self.serverID + 1) % self.total_server
+        #     self.run()
+        # except:
+        #     print("cannot connect to server")
             
     """
         unicast_receive(int, Message)
@@ -156,6 +160,7 @@ class Client(multiprocessing.Process):
         addBatchCmd keeps adding commands
     """
     def addBatchCmd(self):
+        print("addBatchCmd...")
         while True:
             self.batch_cmd += raw_input()
 
@@ -164,10 +169,11 @@ class Client(multiprocessing.Process):
         executeBatchCmd execute each command line received during delay
     """
     def executeBatchCmd(self):
+        print("executeBatchCmd...")
         if (self.batch_cmd):
             for cmd in self.batch_cmd.splitlines():
-                parseCommand(cmd)
-        self.batch_cmd = None
+                self.parseCommand(cmd)
+        self.batch_cmd = ''
 
     """
         execute user commands from std-input
@@ -175,24 +181,31 @@ class Client(multiprocessing.Process):
     def parseCommand(self, cmd):
         cmd_args = cmd.split()
         # write value to variable
-        if cmd_args[0] == "put":
+        if cmd_args[0] == "put" and len(cmd_args) == 3:
             var_name, value = cmd_args[1], int(cmd_args[2])
-            self.channel.unicastTCP(self.serverID, self.socket, str(self.client_id) + " " + cmd)
+            message = str(self.client_id) + " " + cmd
+            self.channel.unicastTCP(self.serverID, message)
         # get variable's value and print to stdout
-        elif cmd_args[0] == "get":
+        elif cmd_args[0] == "get" and len(cmd_args) == 2:
             var_name = cmd_args[1]
-            self.channel.unicastTCP(self.serverID, self.socket, str(self.client_id) + " " + cmd)
+            message = str(self.client_id) + " " + cmd
+            self.channel.unicastTCP(self.serverID, message)
         # delay input to allow a batch of commands
-        elif cmd_args[0] == "delay":
-            sleep_time = cmd_args[1]
-            t_batchCmd = Thread(target = addBatchCmd, args=())
+        elif cmd_args[0] == "delay" and len(cmd_args) == 2:
+            sleep_time = float(cmd_args[1])
+            t_batchCmd = Thread(target = self.addBatchCmd, args=())
             t_batchCmd.start()
             # wait until thread timeout
-            t_batchCmd.join(sleep_time / 1000)
-            executeBatchCmd()
+            time.sleep(sleep_time / 1000.0)
+            # t_batchCmd.join(sleep_time / 1000.0)
+            t_batchCmd._Thread__stop()
+            self.executeBatchCmd()
         # requests server to print all variables to stdout
-        elif cmd_args[0] == "dump":
-            self.channel.unicastTCP(self.serverID, self.socket, str(self.client_id) + " " + cmd)
+        elif cmd_args[0] == "dump" and len(cmd_args) == 1:
+            message = str(self.client_id) + " " + cmd
+            self.channel.unicastTCP(self.serverID, message)
+        else:
+            print("command not understood, enter new command:")
 
 
 def main():
@@ -203,22 +216,26 @@ def main():
     """
         init client thread
     """
-    client_id = random.uniform(1, sys.maxint) # generate a random id for client
+    client_id = random.randint(1, 999999) # generate a random id for client
     p = Client(client_id, args.serverID)
     # daemon thread does not prevent main program from exiting
     p.daemon = True 
     p.start()
 
-    try:
-        while True:
-            cmd = raw_input()
-            if cmd:
-                cmd_args = cmd.split()
-                if cmd_args[0] == "exit": 
-                    break;
-                p.parseCommand(cmd)
-    except KeyboardInterrupt:
-        print("CTRL C occured")
+    # try:
+    while True:
+        print("waiting for command: ")
+        cmd = raw_input()
+        if cmd:
+            cmd_args = cmd.split()
+            if cmd_args[0] == "exit": 
+                break;
+            p.parseCommand(cmd)
+    # except KeyboardInterrupt:
+    #     print("CTRL C occured")
+    # finally:
+    print("exit client process")
+    p.terminate()
 
 if __name__ == '__main__':
     main()
