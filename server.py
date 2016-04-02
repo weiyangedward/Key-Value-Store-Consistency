@@ -100,13 +100,13 @@ class Server(multiprocessing.Process):
     
 
 
-    def recvClient(self, data, address, conn):
+    def recvClient(self, data, conn):
         print("server recvClient...")
-        self.consistency.recvClient(data, address, conn)
+        self.consistency.recvClient(data, conn)
 
-    def recvReplica(self, data, address):
+    def recvReplica(self, data):
         print("server recvReplica...")
-        self.consistency.recvReplica(data, address)
+        self.consistency.recvReplica(data)
 
     """
         init a thread for server replica
@@ -122,7 +122,7 @@ class Server(multiprocessing.Process):
             conn, addr = self.socket.accept() # accept
             print('Connected by', addr) # addr = (host, port)
             # init a server thread for a client
-            t_serverThread = Thread(target = self.serverThread, args=(addr[1], conn, ))
+            t_serverThread = Thread(target = self.serverThread, args=(conn, ))
             t_serverThread.start()
         # except:
         #     print("CTRL C occured")
@@ -142,7 +142,7 @@ class Server(multiprocessing.Process):
         # try:
         while True:
             data, address = socketUDP.recvfrom(4096)
-            self.recvReplica(data, address)
+            self.recvReplica(data)
         # except:
         #     print("CTRL C occured")
         # finally:
@@ -150,12 +150,12 @@ class Server(multiprocessing.Process):
         socketUDP.close()
 
     # serverThread function
-    def serverThread(self, client_port, conn):
+    def serverThread(self, conn):
         while 1:
             data, address = conn.recvfrom(4096)
             if not data: break
-            print("receive from client %s at port %d" % (data, client_port))
-            self.recvClient(data, address, conn)
+            print("receive client message %s" % (data))
+            self.recvClient(data, conn)
         conn.close()
 
 def main():
