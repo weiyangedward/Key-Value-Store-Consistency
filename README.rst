@@ -31,19 +31,19 @@ To Run
 	python client.py [serverID]
 
 
-	Note that log file 'output_log*.txt' will be created in the same directory
-	. New log info will be appended to the previous log file, you can delete 
+	Note that log file 'output_log*.txt' will be created in the same directory. 
+	New log info will be appended to the previous log file, you can delete 
 	log files before start the new run.
 	
 Quick Start
 -----------
 ::
 	
-	Start servers:
+	Start servers at different terminals:
 	>> python server.py 1 eventual 2 2
 	>> python server.py 2 eventual 2 2
 
-	Start clients:
+	Start clients at different terminals:
 	>> python client.py 2
 	>> python client.py 2
 
