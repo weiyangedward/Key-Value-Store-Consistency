@@ -161,8 +161,11 @@ class Client(multiprocessing.Process):
     """
     def addBatchCmd(self):
         print("addBatchCmd...")
-        while True:
-            self.batch_cmd += raw_input()
+        try:
+            while True:
+                self.batch_cmd += raw_input()
+        except:
+            print("timeout")
 
     """
         handle 'delay'
@@ -193,12 +196,14 @@ class Client(multiprocessing.Process):
         # delay input to allow a batch of commands
         elif cmd_args[0] == "delay" and len(cmd_args) == 2:
             sleep_time = float(cmd_args[1])
-            t_batchCmd = Thread(target = self.addBatchCmd, args=())
+            # t_batchCmd = Thread(target = self.addBatchCmd, args=())
+            # t_batchCmd.start()
+            t_batchCmd = multiprocessing.Process(target = self.addBatchCmd, args=())
             t_batchCmd.start()
             # wait until thread timeout
             time.sleep(sleep_time / 1000.0)
             # t_batchCmd.join(sleep_time / 1000.0)
-            t_batchCmd._Thread__stop()
+            t_batchCmd.terminate()
             self.executeBatchCmd()
         # requests server to print all variables to stdout
         elif cmd_args[0] == "dump" and len(cmd_args) == 1:
@@ -228,8 +233,7 @@ def main():
         cmd = raw_input()
         if cmd:
             cmd_args = cmd.split()
-            if cmd_args[0] == "exit": 
-                break;
+            if cmd_args[0] == "exit": break
             p.parseCommand(cmd)
     # except KeyboardInterrupt:
     #     print("CTRL C occured")
