@@ -39,6 +39,8 @@ Quick Start
 -----------
 ::
 	
+	Eventual Consistency:
+
 	Start servers at different terminals:
 	>> python server.py 1 eventual 2 2
 	>> python server.py 2 eventual 2 2
@@ -47,3 +49,12 @@ Quick Start
 	>> python client.py 2
 	>> python client.py 2
 
+	Linearizability Consistency:
+
+	Start servers at different terminals:
+	>> python server.py 1 linearizability 2 2
+	>> python server.py 2 linearizability 2 2
+
+	Start clients at different terminals:
+	>> python client.py 2
+	>> python client.py 2

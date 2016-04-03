@@ -94,11 +94,12 @@ class Server(multiprocessing.Process):
                 self.consistency = EventualConsistency(self, self.serverID, self.process_info, self.addr_dict, self.W, self.R, self.lock)
         elif (self.arg_consistency == "linearizability"):
             if (self.serverID == 1):
-                self.consistency = LinearizabilityConsistency(self, self.serverID, self.socket, self.process_info, self.addr_dict, True)
+                self.consistency = LinearizabilityConsistency(self, self.serverID, self.process_info, self.addr_dict, self.lock, True)
             else:
-                self.consistency = LinearizabilityConsistency(self, self.serverID, self.socket, self.process_info, self.addr_dict)
+                self.consistency = LinearizabilityConsistency(self, self.serverID, self.process_info, self.addr_dict, self.lock)
+        else:
+            print("consistency model not known")
     
-
 
     def recvClient(self, data, conn):
         print("server recvClient...")

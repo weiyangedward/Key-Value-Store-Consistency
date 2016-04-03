@@ -26,12 +26,10 @@ class EventualConsistency(Channel): # inherit from Channel
         self.pid = pid
         self.seq_queue = []
         self.lock = lock
-        # self.variables = variables
         self.W = W
         self.R = R
-        self.messageID2message = dict()
-        self.messageID2timestamp = dict()
-        self.messageID2client = dict() # map a message id to a client TCP
+        self.messageID2timestamp = dict() # map messageID to time
+        self.messageID2client = dict() # map messageID to client TCP socket
         self.variables = VariableStored()
         self.is_sequencer = is_sequencer
 
@@ -99,8 +97,6 @@ class EventualConsistency(Channel): # inherit from Channel
         """
         id = random.randint(1, sys.maxint)
         self.lock.acquire()
-        client_m = EventualConsistencyMessage(client_id, self.pid, id, client_id, message, header)
-        self.messageID2message[id] = client_m
         self.messageID2client[id] = conn
         self.lock.release()
 
@@ -208,7 +204,7 @@ class EventualConsistency(Channel): # inherit from Channel
                 self.check_seq_queue(self.r_sequencer.value)
 
             # read(var) Message
-            # total order multicast
+            # deliver immediately without total order multicast
             elif (data_args[0] == "r"):
                 # data = 'r 2 2 103533 get x 1342189802441044593 54641'
                 from_id, to_id, tok, var, id, client_id= int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6])
