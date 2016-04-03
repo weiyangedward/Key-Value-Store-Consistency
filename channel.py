@@ -21,22 +21,21 @@ class Channel(object):
         send message via TCP
         unicastTCP(int, socket, str)
     """
-    def unicastTCP(self, serverID, message):
+    def unicast_tcp(self, serverID, message):
         delay_time = random.uniform(self.min_delay, self.max_delay)
         m = Message(self.pid, serverID, message)
         print(m.send_str())
         print('delay unicastTCP with {0:.2f}s '.format(delay_time))
-        delayed_t = threading.Timer(delay_time, self.__unicastTCP, (message,))
+        delayed_t = threading.Timer(delay_time, self.__unicast_tcp, (message,))
         delayed_t.start()
 
     """
         unicastTCP helper
         __unicastTCP(socket, str)
     """
-    def __unicastTCP(self, message):
+    def __unicast_tcp(self, message):
         try:
-            sent = self.socket.sendall(message.encode())
-            print(sent)
+            self.socket.sendall(message.encode())
         except:
             print("Cannot send message to server")
 
@@ -73,7 +72,6 @@ class Channel(object):
             data_args = data.split()
             tok, from_id, message_id, var, value, message_id = data_args[0], data_args[1], data_args[2], data_args[3], data_args[4], data_args[5]
             print("received message from server: ", data)
-            # print("delivered message: ", data)
             print(var, str(value))
 
 

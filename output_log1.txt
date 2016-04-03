@@ -1,2 +1,15 @@
 1,433853,get,x,0,req,
 1,433853,get,x,0,resp,0
+1,60189,put,x,0,req,1
+1,60189,put,x,0,resp,1
+1,60189,get,x,0,req,
+1,60189,get,x,0,resp,1
+1,557541,put,x,0,req,1
+1,557541,put,x,0,resp,1
+1,557541,put,x,0,resp,1
+1,637226,put,x,0,req,1
+1,637226,put,x,0,resp,1
+1,637226,put,x,0,resp,1
+1,637226,get,x,0,req,
+1,637226,get,x,0,resp,1
+1,637226,get,x,0,resp,1

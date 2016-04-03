@@ -37,20 +37,20 @@ class EventualConsistency(Channel): # inherit from Channel
         send message via TCP
         unicastTCP(int, socket, str)
     """
-    def unicastTCP(self, serverID, message, conn):
+    def unicast_tcp(self, serverID, message, conn):
         print("unicastTCP...")
         delay_time = random.uniform(self.min_delay, self.max_delay)
         # m = Message(self.pid, serverID, message)
         print(message.send_str())
         print('delay unicastTCP with {0:.2f}s '.format(delay_time))
-        delayed_t = threading.Timer(delay_time, self.__unicastTCP, (conn, message,))
+        delayed_t = threading.Timer(delay_time, self.__unicast_tcp, (conn, message,))
         delayed_t.start()
 
     """
         unicastTCP helper
         __unicastTCP(socket, str)
     """
-    def __unicastTCP(self, conn, message):
+    def __unicast_tcp(self, conn, message):
         try:
             conn.send(str(message))
         except:
@@ -159,7 +159,7 @@ class EventualConsistency(Channel): # inherit from Channel
                         conn = self.messageID2client[id]
                         ack_message = var + " " + str(self.variables.variables[var])
                         m = EventualConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
-                        self.unicastTCP(self.pid, m, conn)
+                        self.unicast_tcp(self.pid, m, conn)
                         # clean received ack
                         self.variables.setRAck(var, 0)
                         self.printLog(m, self.variables.lastWriteTime(var))
@@ -179,7 +179,7 @@ class EventualConsistency(Channel): # inherit from Channel
                         ack_message = var + " " + str(self.variables.variables[var])
                         # m = "w_ack from_id message_id message_id message message_id"
                         m = EventualConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
-                        self.unicastTCP(self.pid, m, conn)
+                        self.unicast_tcp(self.pid, m, conn)
                         # clean received ack
                         self.variables.setWAck(var, 0)
                         self.printLog(m, self.variables.lastWriteTime(var))
