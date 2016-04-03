@@ -40,7 +40,7 @@ Quick Start
 -----------
 ::
 	
-	Eventual Consistency:
+	1. Eventual Consistency:
 
 	Start servers at different terminals:
 	>> python server.py 1 eventual 2 2
@@ -50,7 +50,7 @@ Quick Start
 	>> python client.py 2
 	>> python client.py 2
 
-	Linearizability Consistency:
+	2. Linearizability Consistency:
 
 	Start servers at different terminals:
 	>> python server.py 1 linearizability 2 2
@@ -60,7 +60,7 @@ Quick Start
 	>> python client.py 2
 	>> python client.py 2
 
-	Test server crash:
+	3. Test server crash:
 
 	Start servers at different terminals:
 	>> python server.py 1 eventual 2 2
@@ -71,3 +71,24 @@ Quick Start
 
 	Then kill server2, after which client should be able to connect to 
 	server1 automatically.
+
+	4. Test 'delay [ms]' to allow multipule command lines:
+		Start servers at different terminals:
+	>> python server.py 1 eventual 2 2
+	>> python server.py 2 eventual 2 2
+
+	Start clients at different terminals:
+	>> python client.py 2
+	>> delay 10000
+	>> get x
+	>> put x 1
+	>> get x
+
+	5. Test 'dump' to show all variables status on server side:
+	>> python server.py 1 eventual 2 2
+	>> python server.py 2 eventual 2 2
+
+	Start clients at different terminals:
+	>> python client.py 2
+	>> dump
+

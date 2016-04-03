@@ -175,7 +175,6 @@ def main():
     server_id = args.serverID - 1  # (0,9)
     reconnect_try = 0
 
-    # init client thread
     client_id = random.randint(1, 999999) # generate a random id for client
     
     # try to connect to server
@@ -238,7 +237,7 @@ def main():
             if p:
                 p.terminate()
     else:
-        print("server not available, please enter 'exit'")        
+        print("server not available")        
 
 
 if __name__ == '__main__':
