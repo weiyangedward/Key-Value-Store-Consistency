@@ -3,20 +3,18 @@ import multiprocessing
 import threading
 import socket
 import sys
-from message import Message, TotalOrderMessage, SqeuncerMessage, EventualConsistencyMessage, LinearizabilityConsistencyMessage
+from message import SqeuncerMessage, EventualConsistencyMessage
 from channel import Channel
 from variableStored import VariableStored
 
 
-class EventualConsistency(Channel): # inherit from Channel
+class EventualConsistency(Channel):
     """
-        evantual consistency model to handle write and read from client
+        Eventual consistency model to handle write and read from client, inherit from Channel Class.
     """
 
     sequencer_pid = 1
-    """
-        __init__(Process, int, process_info, addr_dict, bool)
-    """
+
     def __init__(self, process, pid, process_info, addr_dict, W, R, lock, is_sequencer = False):
         super(EventualConsistency, self).__init__(process, pid, socket, process_info, addr_dict)
 
@@ -28,8 +26,8 @@ class EventualConsistency(Channel): # inherit from Channel
         self.lock = lock
         self.W = W
         self.R = R
-        self.messageID2timestamp = dict() # map messageID to time
-        self.messageID2client = dict() # map messageID to client TCP socket
+        self.messageID2timestamp = dict()  # map messageID to time
+        self.messageID2client = dict()  # map messageID to client TCP socket
         self.variables = VariableStored()
         self.is_sequencer = is_sequencer
 
@@ -381,14 +379,6 @@ class EventualConsistency(Channel): # inherit from Channel
                 ack_log = var + " "  + str(value)
                 m_log = EventualConsistencyMessage(from_id, m.to_id, m.id, m.client_id, ack_log, "w")
                 self.printLog(m_log, timepoint)
-
-        # elif m.header == "r":
-        #     data_args = m.content.split()
-        #     tok, var = data_args[0], data_args[1]
-        #     print("deliver message %s\n" % (str(m)))
-        #     message = m.content + " " + str(self.variables.variables[var]) + timepoint
-        #     m = EventualConsistencyMessage(m.from_id, m.to_id, m.id, message, "r_ack");
-        #     self.unicast(m, from_id)
 
     """
         Check our queue for sequence number,

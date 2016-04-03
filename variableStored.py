@@ -8,7 +8,7 @@ class VariableStored(object):
 		self.lastWrite = dict() # last-write timepoint
 		self.r_ack = dict() # number of received r_ack for var
 		self.w_ack = dict() # number of received w_ack for var
-		# self.messageID2client = dict()
+
 		for var_ascii in range(97,(97+26)):
 			var_chr = str(unichr(var_ascii))
 			self.variables[var_chr] = 0 # e.g., 'a' = 0

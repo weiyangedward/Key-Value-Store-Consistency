@@ -1,44 +1,8 @@
-"""
-
-    def main():
-        1. parse args
-        2. init a lock for both of Replica and Server
-        3. init Server obj
-        4. launch Server thread to talk to client
-        5. listen to manager command
-
-    class Server(derived from multiprocessing.Process):
-
-        def __init__(serverID, arg_consistency, variableStored, lock):
-            get server Address and Port info from configreader
-            set consistency model (eventual consistency modified from channel, linearizability modified from totalOrderChannel)
-            set TCP connect
-
-        def run():
-            launch a replicaThread
-            while True:
-                keep accepting client
-                launch a server thread for a client
-
-        def serverThread():
-
-        def replicaThread():
-            set UDP connect
-            while true:
-                receiving message
-                self.server.consistency.recv(data, address)
-
-
-"""
-
 import multiprocessing
 from threading import Thread
-import sys
-import threading
 import socket
 import argparse
 import configreader
-from variableStored import VariableStored
 from eventualConsistency import EventualConsistency
 from linearizabilityConsistency import LinearizabilityConsistency
 
@@ -174,7 +138,6 @@ def main():
     parser.add_argument("W", help="number of w_ack indicates finished, default=1", type=int, default='1')
     parser.add_argument("R", help="number of r_ack indicates finished, default=1", type=int, default='1')
     args = parser.parse_args()
-    # lock = multiprocessing.Lock()
 
     # start server thread
     t_server = Server(args.id, args.consistency, args.W, args.R)

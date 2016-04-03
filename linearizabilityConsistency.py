@@ -3,19 +3,18 @@ import multiprocessing
 import threading
 import socket
 import sys
-from message import Message, TotalOrderMessage, SqeuncerMessage, EventualConsistencyMessage, LinearizabilityConsistencyMessage
+from message import SqeuncerMessage, LinearizabilityConsistencyMessage
 from channel import Channel
 from variableStored import VariableStored
 
 
-class LinearizabilityConsistency(Channel): # inherit from Channel
+class LinearizabilityConsistency(Channel):
     """
-        eventual consistency model to handle write and read from client
+        Linearizability consistency model to handle write and read from client, inherit from Channel
     """
 
     sequencer_pid = 1
 
-    # __init__(Process, int, process_info, addr_dict, bool)
     def __init__(self, process, pid, process_info, addr_dict, lock, is_sequencer = False):
         super(LinearizabilityConsistency, self).__init__(process, pid, socket, process_info, addr_dict)
 
@@ -25,8 +24,8 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
         self.pid = pid
         self.seq_queue = []
         self.lock = lock
-        self.messageID2timestamp = dict() # map messageID to time
-        self.messageID2client = dict() # map messageID to client TCP socket
+        self.messageID2timestamp = dict()  # map messageID to time
+        self.messageID2client = dict()  # map messageID to client TCP socket
         self.variables = VariableStored()
         self.is_sequencer = is_sequencer
 
@@ -62,7 +61,6 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
         print("unicast...")
 
         delay_time = random.uniform(self.min_delay, self.max_delay)
-        # message = Message(self.pid, destination, message)
         print(str(message))
         print('delay unicast with {0:.2f}s '.format(delay_time))
         delayed_t = threading.Timer(delay_time, self.__unicast, (message, destination,))
@@ -427,5 +425,3 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
 
                         # keep checking the queue
                         self.check_seq_queue(self.r_sequencer.value)
-
-                        
