@@ -137,14 +137,15 @@ class LinearizabilityConsistency(Channel):
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
 
                 # self.lock.acquire()
-                if id in self.messageID2client:
-                    conn = self.messageID2client[id]
-                    ack_message = var + " " + str(self.variables.variables[var])
-                    m = LinearizabilityConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
-                    self.unicast_tcp(self.pid, m, conn)
-                    self.printLog(m, self.variables.lastWriteTime(var))
-                else:
-                    print("no corresponded messageID %d" % (id))
+                if (to_id == self.pid):
+                    if (id in self.messageID2client):
+                        conn = self.messageID2client[id]
+                        ack_message = var + " " + str(self.variables.variables[var])
+                        m = LinearizabilityConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
+                        self.unicast_tcp(self.pid, m, conn)
+                        self.printLog(m, self.variables.lastWriteTime(var))
+                    else:
+                        print("no corresponded messageID %d" % (id))
                 # self.lock.release()
 
             # w_ack(var, messageID)
@@ -153,14 +154,15 @@ class LinearizabilityConsistency(Channel):
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
 
                 # self.lock.acquire()
-                if id in self.messageID2client:
-                    conn = self.messageID2client[id]
-                    ack_message = var + " " + str(self.variables.variables[var])
-                    m = LinearizabilityConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
-                    self.unicast_tcp(self.pid, m, conn)
-                    self.printLog(m, self.variables.lastWriteTime(var))
-                else:
-                    print("no corresponded messageID %d" % (id))
+                if (to_id == self.pid):
+                    if (id in self.messageID2client):
+                        conn = self.messageID2client[id]
+                        ack_message = var + " " + str(self.variables.variables[var])
+                        m = LinearizabilityConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
+                        self.unicast_tcp(self.pid, m, conn)
+                        self.printLog(m, self.variables.lastWriteTime(var))
+                    else:
+                        print("no corresponded messageID %d" % (id))
                 # self.lock.release()
 
             # write(var,value)

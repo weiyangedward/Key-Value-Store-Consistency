@@ -26,6 +26,7 @@ class EventualConsistency(Channel):
         self.lock = lock
         self.W = W
         self.R = R
+        self.ackedMessage = set()
         self.messageID2timestamp = dict()  # map messageID to time
         self.messageID2client = dict()  # map messageID to client TCP socket
         self.variables = VariableStored()
@@ -147,43 +148,49 @@ class EventualConsistency(Channel):
                     self.variables.lastWrite[var] = timepoint
                     self.variables.variables[var] = value
 
-                # update received ack
-                self.variables.setRAck(var, self.variables.getRAck(var) + 1)
+                self.lock.acquire()
+                if (id not in self.ackedMessage):
+                    # update received ack
+                    self.variables.setRAck(var, self.variables.getRAck(var) + 1)
 
-                # send r_ack to client if received ack >= R
-                if self.variables.getRAck(var) >= self.R:
-                    self.lock.acquire()
-                    if id in self.messageID2client:
-                        conn = self.messageID2client[id]
-                        ack_message = var + " " + str(self.variables.variables[var])
-                        m = EventualConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
-                        self.unicast_tcp(self.pid, m, conn)
-                        # clean received ack
-                        self.variables.setRAck(var, 0)
-                        self.printLog(m, self.variables.lastWriteTime(var))
-                    else:
-                        print("no corresponded messageID %d" % (id))
-                    self.lock.release()
+                    # send r_ack to client if received ack >= R
+                    if self.variables.getRAck(var) >= self.R:
+                        self.ackedMessage.add(id)
+                        if id in self.messageID2client:
+                            conn = self.messageID2client[id]
+                            ack_message = var + " " + str(self.variables.variables[var])
+                            m = EventualConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
+                            self.unicast_tcp(self.pid, m, conn)
+                            # clean received ack
+                            self.variables.setRAck(var, 0)
+                            self.printLog(m, self.variables.lastWriteTime(var))
+                        else:
+                            print("no corresponded messageID %d" % (id))
+                self.lock.release()
 
             # w_ack(var, messageID)
             elif data_args[0] == "w_ack":
                 # data = 'w_ack 33276 2 put x 1 7440523501060122809 33276'
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
-                self.variables.setWAck(var, self.variables.getWAck(var)+1)
-                if self.variables.w_ack[var] >= self.W:
-                    self.lock.acquire()
-                    if id in self.messageID2client:
-                        conn = self.messageID2client[id]
-                        ack_message = var + " " + str(self.variables.variables[var])
-                        # m = "w_ack from_id message_id message_id message message_id"
-                        m = EventualConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
-                        self.unicast_tcp(self.pid, m, conn)
-                        # clean received ack
-                        self.variables.setWAck(var, 0)
-                        self.printLog(m, self.variables.lastWriteTime(var))
-                    else:
-                        print("no corresponded messageID %d" % (id))
-                    self.lock.release()
+                
+                self.lock.acquire()
+                if (id not in self.ackedMessage): # message has not acked yet
+                    self.variables.setWAck(var, self.variables.getWAck(var)+1)
+                    if self.variables.w_ack[var] >= self.W:
+                        self.ackedMessage.add(id)
+                        if id in self.messageID2client:
+                            conn = self.messageID2client[id]
+                            ack_message = var + " " + str(self.variables.variables[var])
+                            # m = "w_ack from_id message_id message_id message message_id"
+                            m = EventualConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
+                            self.unicast_tcp(self.pid, m, conn)
+                            # clean received ack
+                            self.variables.setWAck(var, 0)
+                            self.printLog(m, self.variables.lastWriteTime(var))
+                        else:
+                            print("no corresponded messageID %d" % (id))
+                self.lock.release()
+
             # write(var,value)
             # total order multicast
             elif data_args[0] == "w":
