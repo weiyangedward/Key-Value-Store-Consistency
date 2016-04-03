@@ -34,6 +34,7 @@ To Run
 	Note that log file 'output_log*.txt' will be created in the same directory. 
 	New log info will be appended to the previous log file, you can delete 
 	log files before start the new run.
+
 	
 Quick Start
 -----------
@@ -58,3 +59,15 @@ Quick Start
 	Start clients at different terminals:
 	>> python client.py 2
 	>> python client.py 2
+
+	Test server crash:
+
+	Start servers at different terminals:
+	>> python server.py 1 eventual 2 2
+	>> python server.py 2 eventual 2 2
+
+	Start clients at different terminals:
+	>> python client.py 2
+
+	Then kill server2, after which client should be able to connect to 
+	server1 automatically.

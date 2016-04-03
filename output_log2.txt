@@ -38,3 +38,6 @@
 2,473370,put,x,0,req,2
 2,473370,put,x,0,resp,2
 2,473370,put,x,0,resp,2
+2,67858,get,x,0,req,
+2,67858,get,x,0,resp,0
+2,67858,get,x,0,resp,0

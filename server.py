@@ -114,23 +114,23 @@ class Server(multiprocessing.Process):
         init a new thread for every client
     """
     def run(self):
-        # try:
-        # init replica thread
-        t_replica = Thread(target = self.replicaThread, args=())
-        t_replica.start()
+        try:
+            # init replica thread
+            t_replica = Thread(target = self.replicaThread, args=())
+            t_replica.start()
 
-        while(1):
-            conn, addr = self.socket.accept() # accept
-            print('Connected by', addr) # addr = (host, port)
-            # init a server thread for a client
-            t_serverThread = Thread(target = self.serverThread, args=(conn, ))
-            t_serverThread.start()
-        # except:
-        #     print("CTRL C occured")
-        # finally:
-        print("exit server thread")
-        self.socket.close()
-        t_replica.terminate()
+            while(1):
+                conn, addr = self.socket.accept() # accept
+                print('Connected by', addr) # addr = (host, port)
+                # init a server thread for a client
+                t_serverThread = Thread(target = self.serverThread, args=(conn, ))
+                t_serverThread.start()
+        except:
+            print("CTRL C occured")
+        finally:
+            print("exit server thread")
+            self.socket.close()
+            t_replica.terminate()
 
     # replicaThread function
     def replicaThread(self):
@@ -140,24 +140,29 @@ class Server(multiprocessing.Process):
 
         socketUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         socketUDP.bind(address)
-        # try:
-        while True:
-            data, address = socketUDP.recvfrom(4096)
-            self.recvReplica(data)
-        # except:
-        #     print("CTRL C occured")
-        # finally:
-        print("exit replica thread")
-        socketUDP.close()
+        try:
+            while True:
+                data, address = socketUDP.recvfrom(4096)
+                self.recvReplica(data)
+        except:
+            print("CTRL C occured")
+        finally:
+            print("exit replica thread")
+            socketUDP.close()
 
     # serverThread function
     def serverThread(self, conn):
-        while 1:
-            data, address = conn.recvfrom(4096)
-            if not data: break
-            print("receive client message %s" % (data))
-            self.recvClient(data, conn)
-        conn.close()
+        try:
+            while True:
+                data, address = conn.recvfrom(4096)
+                if not data: break
+                print("receive client message %s" % (data))
+                self.recvClient(data, conn)
+        except:
+            print("disconnected from client")
+        finally:
+            print("Lost connection from client", address)
+            conn.close()
 
 def main():
     parser = argparse.ArgumentParser(description="replica server")

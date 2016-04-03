@@ -67,7 +67,7 @@ class Client(multiprocessing.Process):
 
     def __init__(self, client_id, serverID):
         super(Client, self).__init__() # call __init__ from multiprocessing.Process
-        self.serverID = serverID
+        self.serverID = serverID - 1 # (0,9)
         self.client_id = client_id
 
         """
@@ -77,15 +77,16 @@ class Client(multiprocessing.Process):
         """
         self.process_info, self.addr_dict = configreader.get_processes_info()
         self.total_server = configreader.get_total_servers()
-        self.address = self.process_info[self.serverID]
+        self.address = self.process_info[self.serverID+1]
         self.ip, self.port = self.address[0], self.address[1]
         self.batch_cmd = ''
         self.client_id = client_id
+        self.reconnect_try = 0
 
         """
             init TCP connect to server
         """
-        self.address = self.process_info[self.serverID]
+        self.address = self.process_info[self.serverID+1]
         self.ip, self.port = self.address[0], self.address[1]
         for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM):
             af, socktype, proto, canonname, sa = res
@@ -112,22 +113,67 @@ class Client(multiprocessing.Process):
         # pass Client obj as arg to Channel
         self.channel = Channel(self, self.client_id, self.socket, self.process_info, self.addr_dict)
 
+    def socketTCP(self):
+        self.address = self.process_info[self.serverID+1]
+        self.ip, self.port = self.address[0], self.address[1]
+        for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM):
+            af, socktype, proto, canonname, sa = res
+            try:
+                self.socket = socket.socket(af, socktype, proto) # build a socket
+            except socket.error as msg:
+                self.socket = None
+                continue
+            try:
+                self.socket.connect(sa) # connect to socket 
+            except socket.error as msg:
+                self.socket.close()
+                self.socket = None
+                continue
+            break
+        if self.socket is None:
+            print('could not open socket')
+        else:
+            print("successfully connected to server %d" % (self.serverID+1))
+
+    def channelSet(self):
+        self.channel = Channel(self, self.client_id, self.socket, self.process_info, self.addr_dict)
+            # sys.exit(1)
+
     """
         override run(), receiving message from server
     """
     def run(self):
-        # try:
-        while True:
-            data, address = self.socket.recvfrom(4096)
-            print("get server message: ", data)
-            # break if connected server crashed
-            if not data: break
-            self.channel.recv(data)
-        # except:
-        print("CTRL C occured")
-        # finally:
-        print("exit client thread")
-        self.socket.close()
+        try:
+            while True:
+                data, address = self.socket.recvfrom(4096)
+                print("get server message: ", data, address)
+                # break if connected server crashed
+                if not data: break
+                self.channel.recv(data)
+        except KeyboardInterrupt:
+            print("CTRL C occured")
+        except:
+            print("Disconnected from server")
+            # ====
+            # choose another server if the connected server is crashed
+            # handle server crash: pick a server with higher id
+            # relaunch run()
+            # ====
+            
+        finally:
+            print("exit client thread")
+            if self.socket != None: self.socket.close()
+            if (self.reconnect_try < self.total_server * 10):
+                print("Trying to connect to next server...")
+                self.reconnect_try += 1
+                self.serverID = (self.serverID + 1) % (self.total_server)
+                print("Trying to connect to next server %d" % (self.serverID+1))
+                self.socketTCP()
+                self.channelSet()
+                self.run()
+            else:
+                print("Hit maximum attempts, please enter 'exit'")
+            
         # except:
 
                # ====
