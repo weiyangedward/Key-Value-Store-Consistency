@@ -68,12 +68,12 @@ class Channel(object):
         recv(str)
     """
     def recv(self, data):
-        print("receive message from cliemt ", data)
+        # print("receive message from cliemt ", data)
         if data:
             data_args = data.split()
             tok, from_id, message_id, var, value, message_id = data_args[0], data_args[1], data_args[2], data_args[3], data_args[4], data_args[5]
-            print("received message from sever: ", data)
-            print("delivered message: ", data)
+            print("received message from server: ", data)
+            # print("delivered message: ", data)
             print(var, str(value))
 
 

@@ -68,10 +68,12 @@ class Client(multiprocessing.Process):
     def __init__(self, client_id, serverID):
         super(Client, self).__init__() # call __init__ from multiprocessing.Process
 
+        # a shared variable to show serverID
         self.server_id = multiprocessing.Value('i', 0)
         with self.server_id.get_lock():
             self.server_id.value = serverID + 1 # (1,10)
 
+        # a shared variable to show socket status
         self.socket_status = multiprocessing.Value('i', 0)
         with self.socket_status.get_lock():
             self.socket_status.value = 0
@@ -126,40 +128,7 @@ class Client(multiprocessing.Process):
         # pass Client obj as arg to Channel
         self.channel = Channel(self, self.client_id, self.socket, self.process_info, self.addr_dict)
 
-    def socketTCP(self):
-        serverID = 0
-        with self.server_id.get_lock():
-            serverID = self.server_id.value
-        self.address = self.process_info[serverID]
-        self.ip, self.port = self.address[0], self.address[1]
-        print(self.ip, self.port)
-        for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM):
-            af, socktype, proto, canonname, sa = res
-            try:
-                self.socket = socket.socket(af, socktype, proto) # build a socket
-            except socket.error as msg:
-                self.socket = None
-                continue
-            try:
-                self.socket.connect(sa) # connect to socket 
-            except socket.error as msg:
-                self.socket.close()
-                self.socket = None
-                continue
-            break
-        if self.socket is None:
-            print('could not open socket')
-        else:
-            print("successfully connected to server %d" % (serverID+1))
 
-
-    def channelSet(self):
-        self.channel = Channel(self, self.client_id, self.socket, self.process_info, self.addr_dict)
-
-
-    def shutdown(self):
-        print("Shutdown initiated")
-        self.exit.set()
     """
         override run(), receiving message from server
     """

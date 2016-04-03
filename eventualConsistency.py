@@ -128,7 +128,7 @@ class EventualConsistency(Channel): # inherit from Channel
         parse messages:
         w(var, value)
     """
-    def recvReplica(self, data):
+    def recv_from_replica(self, data):
         print("recvReplica...")
         # print("dump all keys in messageID2client: ")
         # self.lock.acquire()
@@ -141,18 +141,19 @@ class EventualConsistency(Channel): # inherit from Channel
             """
                 r_ack(var, value, timepoint, messageID)
             """
-            if (data_args[0] == "r_ack"):
+            if data_args[0] == "r_ack":
                 # data = 'r_ack 2 2 x 0 0 8037938055510234267 980486'
                 from_id, to_id, var, value, timepoint, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], int(data_args[4]), int(data_args[5]), int(data_args[6]), int(data_args[7])
                 # update var timpoint and value
-                if (timepoint > self.variables.lastWrite[var]):
+                if timepoint > self.variables.lastWrite[var]:
                     self.variables.lastWrite[var] = timepoint
                     self.variables.variables[var] = value
+
                 # update received ack
-                self.variables.setRAck(var, self.variables.getRAck(var)+1)
+                self.variables.setRAck(var, self.variables.getRAck(var) + 1)
 
                 # send r_ack to client if received ack >= R
-                if (self.variables.getRAck(var) >= self.R):
+                if self.variables.getRAck(var) >= self.R:
                     self.lock.acquire()
                     if id in self.messageID2client:
                         conn = self.messageID2client[id]
@@ -167,11 +168,11 @@ class EventualConsistency(Channel): # inherit from Channel
                     self.lock.release()
 
             # w_ack(var, messageID)
-            elif (data_args[0] == "w_ack"):
+            elif data_args[0] == "w_ack":
                 # data = 'w_ack 33276 2 put x 1 7440523501060122809 33276'
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
                 self.variables.setWAck(var, self.variables.getWAck(var)+1)
-                if (self.variables.w_ack[var] >= self.W):
+                if self.variables.w_ack[var] >= self.W:
                     self.lock.acquire()
                     if id in self.messageID2client:
                         conn = self.messageID2client[id]
@@ -187,7 +188,7 @@ class EventualConsistency(Channel): # inherit from Channel
                     self.lock.release()
             # write(var,value)
             # total order multicast
-            elif (data_args[0] == "w"):
+            elif data_args[0] == "w":
                 # data = 'w 1 1 17701 put x 1 990784337849110725'
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
                 message = tok + " " + var + " " + str(value)
@@ -205,7 +206,7 @@ class EventualConsistency(Channel): # inherit from Channel
 
             # read(var) Message
             # deliver immediately without total order multicast
-            elif (data_args[0] == "r"):
+            elif data_args[0] == "r":
                 # data = 'r 2 2 103533 get x 1342189802441044593 54641'
                 from_id, to_id, tok, var, id, client_id= int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6])
                 # deliver message
@@ -216,7 +217,7 @@ class EventualConsistency(Channel): # inherit from Channel
                 ack_message = var + " "  + str(value) + " "  + str(timepoint)
 
                 # only sender print log
-                if (from_id == self.pid):
+                if from_id == self.pid:
                     ack_log = var + " "  + str(value)
                     m_log = EventualConsistencyMessage(from_id, to_id, id, client_id, ack_log, "r")
                     self.printLog(m_log, timepoint)
@@ -226,7 +227,7 @@ class EventualConsistency(Channel): # inherit from Channel
                 self.unicast(m, from_id)
             
             # Sequencer's order message
-            elif (data_args[0] == "seq"):
+            elif data_args[0] == "seq":
                 m_id, sequence = int(data_args[1]), int(data_args[2])
                 self.messageID2timestamp[m_id] = sequence
                 seq_m = SqeuncerMessage(m_id, sequence)
@@ -282,7 +283,7 @@ class EventualConsistency(Channel): # inherit from Channel
         here we don't use self.conn since server needs to handle
         different client with different TCP conn
     """
-    def recvClient(self, data, conn):
+    def recv_from_client(self, data, conn):
         print("call recvClient()...")
         print("get client message ", data)
         if data:
@@ -291,20 +292,20 @@ class EventualConsistency(Channel): # inherit from Channel
             """
                 client r(var)
             """
-            if (data_args[1] == "get"):
+            if data_args[1] == "get":
                 var = data_args[2]
                 # data_args = "get var"
-                message =  data_args[1] + " " + data_args[2]
+                message = data_args[1] + " " + data_args[2]
                 self.multicast(conn, message, "r", client_id)
 
             # client w(var, value)
-            elif (data_args[1] == "put"):
+            elif data_args[1] == "put":
                 var, value = data_args[2], data_args[3]
                 # data_args = "put var value"
                 message = data_args[1] + " " + data_args[2] + " " + data_args[3]
                 self.multicast(conn, message, "w", client_id)
             # client dump
-            elif (data_args[1] == "dump"):
+            elif data_args[1] == "dump":
                 self.variables.dump(self.pid)
             else:
                 print("Client message not understood")
