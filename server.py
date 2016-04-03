@@ -152,17 +152,17 @@ class Server(multiprocessing.Process):
 
     # serverThread function
     def serverThread(self, conn):
-        try:
-            while True:
-                data, address = conn.recvfrom(4096)
-                if not data: break
-                print("receive client message %s" % (data))
-                self.recvClient(data, conn)
-        except:
-            print("disconnected from client")
-        finally:
-            print("Lost connection from client", address)
-            conn.close()
+        # try:
+        while True:
+            data, address = conn.recvfrom(4096)
+            if not data: break
+            print("receive client message ", data, address)
+            self.recvClient(data, conn)
+        # except:
+        #     print("disconnected from client")
+        # finally:
+        print("Lost connection from client")
+        conn.close()
 
 def main():
     parser = argparse.ArgumentParser(description="replica server")

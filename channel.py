@@ -25,7 +25,7 @@ class Channel(object):
         delay_time = random.uniform(self.min_delay, self.max_delay)
         m = Message(self.pid, serverID, message)
         print(m.send_str())
-        print('delay unicast with {0:.2f}s '.format(delay_time))
+        print('delay unicastTCP with {0:.2f}s '.format(delay_time))
         delayed_t = threading.Timer(delay_time, self.__unicastTCP, (message,))
         delayed_t.start()
 
@@ -35,7 +35,8 @@ class Channel(object):
     """
     def __unicastTCP(self, message):
         try:
-            self.socket.sendall(message.encode())
+            sent = self.socket.sendall(message.encode())
+            print(sent)
         except:
             print("Cannot send message to server")
 
