@@ -236,7 +236,7 @@ def main():
     total_server = configreader.get_total_servers()
     serverID = args.serverID - 1 # (0,9)
     reconnect_try = 0
-    # p = None
+    p = None
     """
         init client thread
     """
