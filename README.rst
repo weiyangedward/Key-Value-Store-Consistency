@@ -72,7 +72,7 @@ Quick Start
 	Then kill server2, after which client should be able to connect to 
 	server1 automatically.
 
-	4. Test 'delay' to allow multipule command lines:
+	4. Test 'delay [ms]' to allow multipule command lines:
 		Start servers at different terminals:
 	>> python server.py 1 eventual 2 2
 	>> python server.py 2 eventual 2 2
