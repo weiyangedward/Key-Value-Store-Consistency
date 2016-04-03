@@ -244,7 +244,7 @@ class Client(multiprocessing.Process):
             sleep_time = float(cmd_args[1])
             # t_batchCmd = Thread(target = self.addBatchCmd, args=())
             # t_batchCmd.start()
-            t_batchCmd = multiprocessing.Process(target = self.addBatchCmd, args=())
+            t_batchCmd = multiprocessing.Process(target=self.addBatchCmd, args=())
             t_batchCmd.start()
             # wait until thread timeout
             time.sleep(sleep_time / 1000.0)

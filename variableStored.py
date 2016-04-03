@@ -1,7 +1,8 @@
 class VariableStored(object):
 	"""
-		stores all variables and their values in server replicas
+	stores all variables and their values in server replicas
 	"""
+
 	def __init__(self):
 		self.variables = dict() # var value
 		self.lastWrite = dict() # last-write timepoint
@@ -12,12 +13,15 @@ class VariableStored(object):
 			var_chr = str(unichr(var_ascii))
 			self.variables[var_chr] = 0 # e.g., 'a' = 0
 			self.lastWrite[var_chr] = 0
-			self.r_ack[var_chr] = 0;
-			self.w_ack[var_chr] = 0;
+			self.r_ack[var_chr] = 0
+			self.w_ack[var_chr] = 0
+
 	"""
- 		write to var
- 		write(x, value, timepoint)
+		write to var
+		write(x, value, timepoint)
 	"""
+
+
 	def put(self, var_chr, value, timepoint):
 		if (var_chr in self.variables):
 			self.variables[var_chr] = value
@@ -25,7 +29,7 @@ class VariableStored(object):
 			"""
 				send write(x,val) to other servers
 				collect ack()
-				log finish write 
+				log finish write
 			"""
 		else:
 			print("variable %s not found" % (var_chr))
@@ -71,7 +75,7 @@ class VariableStored(object):
 			"""
 				send read(x) to other servers
 				collect ack()
-				return oldest 
+				return oldest
 			"""
 			return self.variables[var_chr]
 		else:

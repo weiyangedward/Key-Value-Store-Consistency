@@ -286,20 +286,20 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
             """
                 client r(var)
             """
-            if (data_args[1] == "get"):
+            if data_args[1] == "get":
                 var = data_args[2]
                 # data_args = "get var"
                 message =  data_args[1] + " " + data_args[2]
                 self.multicast(conn, message, "r", client_id)
 
             # client w(var, value)
-            elif (data_args[1] == "put"):
+            elif data_args[1] == "put":
                 var, value = data_args[2], data_args[3]
                 # data_args = "put var value"
                 message = data_args[1] + " " + data_args[2] + " " + data_args[3]
                 self.multicast(conn, message, "w", client_id)
             # client dump
-            elif (data_args[1] == "dump"):
+            elif data_args[1] == "dump":
                 self.variables.dump(self.pid)
             else:
                 print("Client message not understood")
@@ -331,7 +331,7 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
         var, value = content[0], content[1]
         log_id = self.pid
         log_line = ''
-        if (m.header == 'r'):
+        if m.header == 'r':
             log_line = str(log_id) + ',' + str(m.client_id) + ',' + request + ',' + var + ',' + str(timepoint) + ',' + status + ',' + '\n'
         else:
             log_line = str(log_id) + ',' + str(m.client_id) + ',' + request + ',' + var + ',' + str(timepoint) + ',' + status + ',' + str(value) + '\n'
