@@ -47,18 +47,18 @@ class Server(multiprocessing.Process):
     """
         a server gets request from all clients and sends data back
     """
-    def __init__(self, serverID, arg_consistency, W, R):
+    def __init__(self, server_id, arg_consistency, w, r):
         super(Server, self).__init__()
         # get address and port info
         self.process_info, self.addr_dict = configreader.get_processes_info()
-        self.address = self.process_info[serverID]
+        self.address = self.process_info[server_id]
         self.ip, self.port = self.address[0], self.address[1]
 
         self.arg_consistency = arg_consistency
         self.lock = multiprocessing.Lock()
-        self.serverID = serverID
-        self.W = W
-        self.R = R
+        self.server_id = server_id
+        self.w = w
+        self.r = r
 
         """    
             init TCP connect to clients 
@@ -66,8 +66,8 @@ class Server(multiprocessing.Process):
         for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM, 0, socket.AI_PASSIVE):
             af, socktype, proto, canonname, sa = res
             try:
-                print("building a socket")
-                self.socket = socket.socket(af, socktype, proto) # build a socket
+                print("establishing a socket")
+                self.socket = socket.socket(af, socktype, proto)  # establish a socket
             except socket.error as msg:
                 self.socket = None
                 continue
@@ -81,33 +81,33 @@ class Server(multiprocessing.Process):
                 self.socket = None
                 continue
             break
+
         if self.socket is None:
             print('could not open socket')
 
         """
             init consistency model
         """
-        if (self.arg_consistency == "eventual"):
-            if (self.serverID == 1):
-                self.consistency = EventualConsistency(self, self.serverID, self.process_info, self.addr_dict, self.W, self.R, self.lock, True)
+        if self.arg_consistency == "eventual":
+            if self.server_id == 1:
+                self.consistency = EventualConsistency(self, self.server_id, self.process_info, self.addr_dict, self.w, self.r, self.lock, True)
             else:
-                self.consistency = EventualConsistency(self, self.serverID, self.process_info, self.addr_dict, self.W, self.R, self.lock)
-        elif (self.arg_consistency == "linearizability"):
-            if (self.serverID == 1):
-                self.consistency = LinearizabilityConsistency(self, self.serverID, self.process_info, self.addr_dict, self.lock, True)
+                self.consistency = EventualConsistency(self, self.server_id, self.process_info, self.addr_dict, self.w, self.r, self.lock)
+        elif self.arg_consistency == "linearizability":
+            if self.server_id == 1:
+                self.consistency = LinearizabilityConsistency(self, self.server_id, self.process_info, self.addr_dict, self.lock, True)
             else:
-                self.consistency = LinearizabilityConsistency(self, self.serverID, self.process_info, self.addr_dict, self.lock)
+                self.consistency = LinearizabilityConsistency(self, self.server_id, self.process_info, self.addr_dict, self.lock)
         else:
             print("consistency model not known")
-    
 
-    def recvClient(self, data, conn):
+    def recv_from_client(self, data, conn):
         print("server recvClient...")
-        self.consistency.recvClient(data, conn)
+        self.consistency.recv_from_client(data, conn)
 
-    def recvReplica(self, data):
+    def recv_from_replica(self, data):
         print("server recvReplica...")
-        self.consistency.recvReplica(data)
+        self.consistency.recv_from_replica(data)
 
     """
         init a thread for server replica
@@ -116,15 +116,15 @@ class Server(multiprocessing.Process):
     def run(self):
         try:
             # init replica thread
-            t_replica = Thread(target = self.replicaThread, args=())
+            t_replica = Thread(target=self.replica_thread, args=())
             t_replica.start()
 
-            while(1):
+            while True:
                 conn, addr = self.socket.accept() # accept
                 print('Connected by', addr) # addr = (host, port)
                 # init a server thread for a client
-                t_serverThread = Thread(target = self.serverThread, args=(conn, ))
-                t_serverThread.start()
+                t_server_thread = Thread(target = self.server_thread, args=(conn,))
+                t_server_thread.start()
         except:
             print("CTRL C occured")
         finally:
@@ -132,42 +132,45 @@ class Server(multiprocessing.Process):
             self.socket.close()
             t_replica.terminate()
 
-    # replicaThread function
-    def replicaThread(self):
+    # replica thread function
+    def replica_thread(self):
         process_info, addr_dict = self.process_info, self.addr_dict
         address = self.address
         ip, port = self.ip, self.port
 
-        socketUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        socketUDP.bind(address)
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp_socket.bind(address)
         try:
             while True:
-                data, address = socketUDP.recvfrom(4096)
-                self.recvReplica(data)
+                data, address = udp_socket.recvfrom(4096)
+                self.recv_from_replica(data)
         except:
-            print("CTRL C occured")
+            print("CTRL C occurred")
         finally:
             print("exit replica thread")
-            socketUDP.close()
+            udp_socket.close()
 
-    # serverThread function
-    def serverThread(self, conn):
+    # server thread function
+    def server_thread(self, conn):
         try:
             while True:
                 data, address = conn.recvfrom(4096)
                 if not data: break
                 print("receive client message %s" % (data))
-                self.recvClient(data, conn)
+                self.recv_from_client(data, conn)
         except:
             print("disconnected from client")
         finally:
             print("Lost connection from client", address)
             conn.close()
 
+
 def main():
+    # replica server arguments
     parser = argparse.ArgumentParser(description="replica server")
     parser.add_argument("id", help="process id (1-10), default=1", type=int, default=1)
-    parser.add_argument("consistency", help="consistency model (eventual || linearizability), default=eventual", type=str, default='eventual')
+    parser.add_argument("consistency", help="consistency model (eventual || linearizability), default=eventual",
+                        type=str, default='eventual')
     parser.add_argument("W", help="number of w_ack indicates finished, default=1", type=int, default='1')
     parser.add_argument("R", help="number of r_ack indicates finished, default=1", type=int, default='1')
     args = parser.parse_args()
@@ -186,7 +189,7 @@ def main():
                 cmd_args = cmd.split()
                 if cmd_args[0] == "exit": break
     except KeyboardInterrupt:
-        print("CTRL C occured")
+        print("CTRL C occurred")
     finally:
         print("exit server process")
         t_server.terminate()

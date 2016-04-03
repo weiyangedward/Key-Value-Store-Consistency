@@ -10,18 +10,17 @@ from variableStored import VariableStored
 
 class LinearizabilityConsistency(Channel): # inherit from Channel
     """
-        evantual consistency model to handle write and read from client
+        eventual consistency model to handle write and read from client
     """
 
     sequencer_pid = 1
-    """
-        __init__(Process, int, process_info, addr_dict, bool)
-    """
+
+    # __init__(Process, int, process_info, addr_dict, bool)
     def __init__(self, process, pid, process_info, addr_dict, lock, is_sequencer = False):
         super(LinearizabilityConsistency, self).__init__(process, pid, socket, process_info, addr_dict)
 
-        self.r_sequencer = multiprocessing.Value('i', 0) # receive sequence number
-        self.s_sequencer = multiprocessing.Value('i', 0) # send sequence number
+        self.r_sequencer = multiprocessing.Value('i', 0)  # receive sequence number
+        self.s_sequencer = multiprocessing.Value('i', 0)  # send sequence number
         self.hb_queue = []  # hold back queue
         self.pid = pid
         self.seq_queue = []
@@ -126,7 +125,7 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
         parse messages:
         w(var, value)
     """
-    def recvReplica(self, data):
+    def recv_from_replica(self, data):
         print("recvReplica...")
 
         if data:
@@ -278,7 +277,7 @@ class LinearizabilityConsistency(Channel): # inherit from Channel
         here we don't use self.conn since server needs to handle
         different client with different TCP conn
     """
-    def recvClient(self, data, conn):
+    def recv_from_client(self, data, conn):
         print("call recvClient()...")
         print("get client message ", data)
         if data:
