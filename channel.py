@@ -36,7 +36,7 @@ class Channel(object):
     def __unicastTCP(self, message):
         try:
             sent = self.socket.sendall(message.encode())
-            print(sent)
+            # print(sent)
         except:
             print("Cannot send message to server")
 
