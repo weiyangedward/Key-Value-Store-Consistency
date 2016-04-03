@@ -296,7 +296,7 @@ def main():
             print("exit client process")
             if p != None: p.terminate()
     else:
-        print("server not available, please enter 'exit'")        
+        print("server not available")        
 
 
 if __name__ == '__main__':
