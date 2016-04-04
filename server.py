@@ -117,6 +117,7 @@ class Server(multiprocessing.Process):
             print("exit replica thread")
             udp_socket.close()
 
+    # replica recv thread to handle coming messages and to prevent missing messages
     def replicaRecv(self,data):
         self.recv_from_replica(data)
 
@@ -127,12 +128,18 @@ class Server(multiprocessing.Process):
                 data, address = conn.recvfrom(4096)
                 if not data: break
                 print("receive client message %s" % (data))
-                self.recv_from_client(data, conn)
+                t_server_recv = Thread(target=self.serverRecv, args=(data,conn))
+                t_server_recv.start()
+                # self.recv_from_client(data, conn)
         except:
             print("server_thread Exceptions")
         finally:
             print("Lost connection from client", address)
             conn.close()
+
+    # server recv thread to handle coming messages and to prevent missing messages, especially from batch commands 
+    def serverRecv(self,data,conn):
+        self.recv_from_client(data, conn)
 
 
 def main():
