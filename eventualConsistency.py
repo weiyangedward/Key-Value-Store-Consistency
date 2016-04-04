@@ -6,6 +6,7 @@ import sys
 from message import SqeuncerMessage, EventualConsistencyMessage
 from channel import Channel
 from variableStored import VariableStored
+import time
 
 
 class EventualConsistency(Channel):
@@ -20,13 +21,17 @@ class EventualConsistency(Channel):
 
         self.r_sequencer = multiprocessing.Value('i', 0) # receive sequence number
         self.s_sequencer = multiprocessing.Value('i', 0) # send sequence number
+        # self.client_uniq_id = multiprocessing.Value('i', 0)
+        self.client_uniq_id = 0
         self.hb_queue = []  # hold back queue
         self.pid = pid
         self.seq_queue = []
         self.lock = lock
         self.W = W
         self.R = R
-        self.ackedMessage = set()
+        self.senderRecv = set() # hash already received 'r'/'w' messageID, this has to be true when log 'r_ack'/'w_ack'. This handles cases where 'r_ack'/'w_ack' arrives earlier then 'r'/'w'
+        self.clientID2int = dict() # map clientID to uniq int from 0,1 ...
+        self.ackedMessage = set() # hash acked messageID to prevent acking the same message twice 
         self.messageID2timestamp = dict()  # map messageID to time
         self.messageID2client = dict()  # map messageID to client TCP socket
         self.variables = VariableStored()
@@ -38,8 +43,10 @@ class EventualConsistency(Channel):
     """
     def unicast_tcp(self, serverID, message, conn):
         print("unicastTCP...")
-        delay_time = random.uniform(self.min_delay, self.max_delay)
-        # m = Message(self.pid, serverID, message)
+        # delay_time = random.uniform(self.min_delay, self.max_delay)
+
+        delay_time = 0  # no delay between client and server
+
         print(message.send_str())
         print('delay unicastTCP with {0:.2f}s '.format(delay_time))
         delayed_t = threading.Timer(delay_time, self.__unicast_tcp, (conn, message,))
@@ -95,9 +102,7 @@ class EventualConsistency(Channel):
             as a message ID
         """
         id = random.randint(1, sys.maxint)
-        self.lock.acquire()
         self.messageID2client[id] = conn
-        self.lock.release()
 
         for to_pid in self.process_info.keys():
             # m = "header from_id to_id message messageID"
@@ -129,10 +134,6 @@ class EventualConsistency(Channel):
     """
     def recv_from_replica(self, data):
         print("recvReplica...")
-        # print("dump all keys in messageID2client: ")
-        # self.lock.acquire()
-        # for key in self.messageID2client: print(key)
-        # self.lock.release()
 
         if data:
             print("get replica message ", data)
@@ -144,29 +145,44 @@ class EventualConsistency(Channel):
                 # data = 'r_ack 2 2 x 0 0 8037938055510234267 980486'
                 from_id, to_id, var, value, timepoint, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], int(data_args[4]), int(data_args[5]), int(data_args[6]), int(data_args[7])
                 # update var timpoint and value
+                self.lock.acquire()
                 if timepoint > self.variables.lastWrite[var]:
                     self.variables.lastWrite[var] = timepoint
                     self.variables.variables[var] = value
+                updated_value = self.variables.variables[var]
+                updated_time = self.variables.lastWrite[var]
+                try:
+                    self.lock.release()
+                except:
+                    print("unlocked")
 
                 self.lock.acquire()
                 if (id not in self.ackedMessage):
                     # update received ack
                     self.variables.setRAck(var, self.variables.getRAck(var) + 1)
-
                     # send r_ack to client if received ack >= R
-                    if self.variables.getRAck(var) >= self.R:
+                    if (self.variables.getRAck(var) >= self.R) and (id in self.senderRecv):
                         self.ackedMessage.add(id)
                         if id in self.messageID2client:
+                            self.variables.setRAck(var, 0)
+                            try:
+                                self.lock.release()
+                            except:
+                                print("unlocked")
+
                             conn = self.messageID2client[id]
-                            ack_message = var + " " + str(self.variables.variables[var])
+                            ack_message = var + " " + str(updated_value)
                             m = EventualConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
                             self.unicast_tcp(self.pid, m, conn)
-                            # clean received ack
-                            self.variables.setRAck(var, 0)
-                            self.printLog(m, self.variables.lastWriteTime(var))
+
+                            time.sleep(0.001)
+                            self.printLog(m, updated_time)
                         else:
                             print("no corresponded messageID %d" % (id))
-                self.lock.release()
+                try:
+                    self.lock.release()
+                except:
+                    print("unlocked")
 
             # w_ack(var, messageID)
             elif data_args[0] == "w_ack":
@@ -174,22 +190,34 @@ class EventualConsistency(Channel):
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
                 
                 self.lock.acquire()
+                updated_time = self.variables.lastWriteTime(var)
                 if (id not in self.ackedMessage): # message has not acked yet
                     self.variables.setWAck(var, self.variables.getWAck(var)+1)
-                    if self.variables.w_ack[var] >= self.W:
+
+                    if (self.variables.w_ack[var]) >= self.W and (id in self.senderRecv):
                         self.ackedMessage.add(id)
                         if id in self.messageID2client:
+                            # reset w_ack numbers
+                            self.variables.setWAck(var, 0)
+                            try:
+                                self.lock.release()
+                            except:
+                                print("unlocked")
+
                             conn = self.messageID2client[id]
-                            ack_message = var + " " + str(self.variables.variables[var])
+                            ack_message = var + " " + str(value)
                             # m = "w_ack from_id message_id message_id message message_id"
                             m = EventualConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
                             self.unicast_tcp(self.pid, m, conn)
-                            # clean received ack
-                            self.variables.setWAck(var, 0)
-                            self.printLog(m, self.variables.lastWriteTime(var))
+                            # output to log
+                            time.sleep(0.001)
+                            self.printLog(m, updated_time)
                         else:
                             print("no corresponded messageID %d" % (id))
-                self.lock.release()
+                try:
+                    self.lock.release()
+                except:
+                    print("unlocked")
 
             # write(var,value)
             # total order multicast
@@ -214,22 +242,55 @@ class EventualConsistency(Channel):
             elif data_args[0] == "r":
                 # data = 'r 2 2 103533 get x 1342189802441044593 54641'
                 from_id, to_id, tok, var, id, client_id= int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6])
-                # deliver message
-                print("deliver message %s from %d" % (data, from_id))
-
+                # get local value and last-write-time
+                self.lock.acquire()
                 timepoint = self.variables.lastWriteTime(var)
                 value = self.variables.variables[var]
+                self.lock.release()
+
                 ack_message = var + " "  + str(value) + " "  + str(timepoint)
 
-                # only sender print log
+                # only sender print log, and then r_ack() if r_ack >= R
                 if from_id == self.pid:
                     ack_log = var + " "  + str(value)
                     m_log = EventualConsistencyMessage(from_id, to_id, id, client_id, ack_log, "r")
+                    # delay_time = 0
+                    # r_t = threading.Timer(delay_time, self.printLog, (m_log, timepoint,))
+                    # r_t.start()
                     self.printLog(m_log, timepoint)
 
-                # ack_message = "r_ack var value timepoint messageID"
-                m = EventualConsistencyMessage(from_id, to_id, id, client_id, ack_message, "r_ack")
-                self.unicast(m, from_id)
+                    self.lock.acquire()
+                    self.senderRecv.add(id)
+                    if (id not in self.ackedMessage):
+                        self.variables.setRAck(var, self.variables.getRAck(var) + 1)
+                        # send r_ack to client if received ack >= R
+                        if (self.variables.getRAck(var) >= self.R) and (id in self.senderRecv):
+                            self.ackedMessage.add(id)
+                            if id in self.messageID2client:
+                                # clean received ack
+                                self.variables.setRAck(var, 0)
+                                try:
+                                    self.lock.release()
+                                except:
+                                    print("unlocked")
+                                conn = self.messageID2client[id]
+                                ack_message = var + " " + str(value)
+                                m = EventualConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
+                                self.unicast_tcp(self.pid, m, conn)
+
+                                time.sleep(0.001)
+                                self.printLog(m, timepoint)
+                    try:
+                        self.lock.release()
+                    except:
+                        print("unlocked")
+                    
+                    # m = EventualConsistencyMessage(from_id, to_id, id, client_id, ack_message, "r_ack")
+                    # self.unicast(m, from_id)
+                else:
+                    # ack_message = "r_ack var value timepoint messageID"
+                    m = EventualConsistencyMessage(from_id, to_id, id, client_id, ack_message, "r_ack")
+                    self.unicast(m, from_id)
             
             # Sequencer's order message
             elif data_args[0] == "seq":
@@ -293,7 +354,11 @@ class EventualConsistency(Channel):
         print("get client message ", data)
         if data:
             data_args = data.split()
-            client_id = data_args[0]
+            client_id = int(data_args[0])
+            if client_id not in self.clientID2int:
+                # with self.client_uniq_id.get_lock():
+                self.clientID2int[client_id] = self.client_uniq_id
+                self.client_uniq_id += 1
             """
                 client r(var)
             """
@@ -320,6 +385,8 @@ class EventualConsistency(Channel):
     # ouput to log file
     def printLog(self, m, timepoint, value=0):
         print("printLog...")
+        cur_time = int(time.time() * 1000)
+
         request = ''
         status = ''
         if m.header == 'w':
@@ -341,11 +408,15 @@ class EventualConsistency(Channel):
         print("content: ", m.content)
         var, value = content[0], content[1]
         log_id = self.pid
+        # print("client id ", m.client_id)
+        client_id = self.clientID2int[int(m.client_id)]
+        # print("client int id ", client_id)
+
         log_line = ''
         if (m.header == 'r'):
-            log_line = str(log_id) + ',' + str(m.client_id) + ',' + request + ',' + var + ',' + str(timepoint) + ',' + status + ',' + '\n'
+            log_line = str(log_id) + ',' + str(client_id) + ',' + request + ',' + var + ',' + str(cur_time) + ',' + status + ',' + '\n'
         else:
-            log_line = str(log_id) + ',' + str(m.client_id) + ',' + request + ',' + var + ',' + str(timepoint) + ',' + status + ',' + str(value) + '\n'
+            log_line = str(log_id) + ',' + str(client_id) + ',' + request + ',' + var + ',' + str(cur_time) + ',' + status + ',' + str(value) + '\n'
 
         log_name = "output_log" + str(self.pid) + ".txt"
 
@@ -376,7 +447,14 @@ class EventualConsistency(Channel):
             data_args = m.content.split()
             tok, var, value = data_args[0], data_args[1], data_args[2]
             if var in self.variables.variables:
+                # write to var and update last-write-time
+                self.lock.acquire()
                 self.variables.put(var, value, timepoint)
+                try:
+                    self.lock.release()
+                except:
+                    print("unlocked")
+
             print("deliver message %s\n" % (str(m)))
             m = EventualConsistencyMessage(m.from_id, m.to_id, m.id, m.client_id, m.content, "w_ack");
             self.unicast(m, from_id)
@@ -386,6 +464,39 @@ class EventualConsistency(Channel):
                 ack_log = var + " "  + str(value)
                 m_log = EventualConsistencyMessage(from_id, m.to_id, m.id, m.client_id, ack_log, "w")
                 self.printLog(m_log, timepoint)
+
+                self.lock.acquire()
+                self.senderRecv.add(m.id)
+                try:
+                    self.lock.release()
+                except:
+                    print("unlocked")
+
+            # send w_ack() back to client, and log w_ack()
+            self.lock.acquire()
+            self.senderRecv.add(m.id)
+            if (m.id not in self.ackedMessage):
+                self.variables.setWAck(var, self.variables.getRAck(var) + 1)
+                # send w_ack to client if received ack >= R
+                if self.variables.getWAck(var) >= self.R and (id in self.senderRecv):
+                    self.ackedMessage.add(m.id)
+                    if (m.id in self.messageID2client):
+                        self.variables.setWAck(var, 0)
+                        try:
+                            self.lock.release()
+                        except:
+                            print("unlocked")
+                        conn = self.messageID2client[m.id]
+                        ack_message = var + " " + str(value)
+                        m_ack = EventualConsistencyMessage(self.pid, m.client_id, m.id, m.client_id, ack_message, "w_ack")
+                        self.unicast_tcp(self.pid, m_ack, conn)
+
+                        time.sleep(0.001)
+                        self.printLog(m_ack, self.variables.lastWriteTime(var))
+            try:
+                self.lock.release()
+            except:
+                print("unlocked")
 
     """
         Check our queue for sequence number,

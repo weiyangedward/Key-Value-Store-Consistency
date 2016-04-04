@@ -6,7 +6,7 @@ import sys
 from message import SqeuncerMessage, LinearizabilityConsistencyMessage
 from channel import Channel
 from variableStored import VariableStored
-
+import time
 
 class LinearizabilityConsistency(Channel):
     """
@@ -20,10 +20,13 @@ class LinearizabilityConsistency(Channel):
 
         self.r_sequencer = multiprocessing.Value('i', 0)  # receive sequence number
         self.s_sequencer = multiprocessing.Value('i', 0)  # send sequence number
+        # self.client_uniq_id = multiprocessing.Value('i', 0)
+        self.client_uniq_id = 0
         self.hb_queue = []  # hold back queue
         self.pid = pid
         self.seq_queue = []
         self.lock = lock
+        self.clientID2int = dict()
         self.messageID2timestamp = dict()  # map messageID to time
         self.messageID2client = dict()  # map messageID to client TCP socket
         self.variables = VariableStored()
@@ -35,7 +38,10 @@ class LinearizabilityConsistency(Channel):
     """
     def unicast_tcp(self, serverID, message, conn):
         print("unicastTCP...")
-        delay_time = random.uniform(self.min_delay, self.max_delay)
+        # delay_time = random.uniform(self.min_delay, self.max_delay)
+
+        delay_time = 0
+
         # m = Message(self.pid, serverID, message)
         print(message.send_str())
         print('delay unicastTCP with {0:.2f}s '.format(delay_time))
@@ -136,35 +142,10 @@ class LinearizabilityConsistency(Channel):
                 # data = 'r_ack 2 2 get x 0 3954241897410879555 270597'
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
 
-                # self.lock.acquire()
-                if (to_id == self.pid):
-                    if (id in self.messageID2client):
-                        conn = self.messageID2client[id]
-                        ack_message = var + " " + str(self.variables.variables[var])
-                        m = LinearizabilityConsistencyMessage(self.pid, client_id, id, client_id, ack_message, "r_ack")
-                        self.unicast_tcp(self.pid, m, conn)
-                        self.printLog(m, self.variables.lastWriteTime(var))
-                    else:
-                        print("no corresponded messageID %d" % (id))
-                # self.lock.release()
-
             # w_ack(var, messageID)
             elif (data_args[0] == "w_ack"):
                 # data = 'w_ack 33276 2 put x 1 7440523501060122809 33276'
                 from_id, to_id, tok, var, value, id, client_id = int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6]), int(data_args[7])
-
-                # self.lock.acquire()
-                if (to_id == self.pid):
-                    if (id in self.messageID2client):
-                        conn = self.messageID2client[id]
-                        ack_message = var + " " + str(self.variables.variables[var])
-                        m = LinearizabilityConsistencyMessage(self.pid, client_id, id,client_id, ack_message, "w_ack")
-                        self.unicast_tcp(self.pid, m, conn)
-                        self.printLog(m, self.variables.lastWriteTime(var))
-                    else:
-                        print("no corresponded messageID %d" % (id))
-                # self.lock.release()
-
             # write(var,value)
             # total order multicast
             elif (data_args[0] == "w"):
@@ -189,18 +170,8 @@ class LinearizabilityConsistency(Channel):
             elif (data_args[0] == "r"):
                 # data = 'r 2 2 103533 get x 1342189802441044593 54641'
                 from_id, to_id, tok, var, id, client_id= int(data_args[1]), int(data_args[2]), data_args[3], data_args[4], int(data_args[5]), int(data_args[6])
-                # deliver message
-                # print("deliver message %s from %d" % (data, from_id))
 
-                # timepoint = self.variables.lastWriteTime(var)
-                # value = self.variables.variables[var]
                 ack_message = tok + " " + var
-
-                # only sender print log
-                # if (from_id == self.pid):
-                #     ack_log = var + " "  + str(value)
-                #     m_log = EventualConsistencyMessage(from_id, to_id, id, client_id, ack_log, "r")
-                #     self.printLog(m_log, timepoint)
 
                 # ack_message = "r_ack var value timepoint messageID"
                 m = LinearizabilityConsistencyMessage(from_id, to_id, id, client_id, ack_message, "r")
@@ -217,8 +188,6 @@ class LinearizabilityConsistency(Channel):
 
                 # check our sequence message to queue to see if we already received the corresponding sequence message
                 self.check_seq_queue(self.r_sequencer.value)
-
-                # self.unicast(m, from_id)
             
             # Sequencer's order message
             elif (data_args[0] == "seq"):
@@ -282,7 +251,12 @@ class LinearizabilityConsistency(Channel):
         print("get client message ", data)
         if data:
             data_args = data.split()
-            client_id = data_args[0]
+            client_id = int(data_args[0])
+            if client_id not in self.clientID2int:
+                # with self.client_uniq_id.get_lock():
+                self.clientID2int[client_id] = self.client_uniq_id
+                self.client_uniq_id += 1
+
             """
                 client r(var)
             """
@@ -309,6 +283,8 @@ class LinearizabilityConsistency(Channel):
     # ouput to log file
     def printLog(self, m, timepoint, value=0):
         print("printLog...")
+        cur_time = int(time.time() * 1000)
+
         request = ''
         status = ''
         if m.header == 'w':
@@ -330,11 +306,13 @@ class LinearizabilityConsistency(Channel):
         print("content: ", m.content)
         var, value = content[0], content[1]
         log_id = self.pid
+        client_id = self.clientID2int[int(m.client_id)]
+
         log_line = ''
         if m.header == 'r':
-            log_line = str(log_id) + ',' + str(m.client_id) + ',' + request + ',' + var + ',' + str(timepoint) + ',' + status + ',' + '\n'
+            log_line = str(log_id) + ',' + str(client_id) + ',' + request + ',' + var + ',' + str(cur_time) + ',' + status + ',' + '\n'
         else:
-            log_line = str(log_id) + ',' + str(m.client_id) + ',' + request + ',' + var + ',' + str(timepoint) + ',' + status + ',' + str(value) + '\n'
+            log_line = str(log_id) + ',' + str(client_id) + ',' + request + ',' + var + ',' + str(cur_time) + ',' + status + ',' + str(value) + '\n'
 
         log_name = "output_log" + str(self.pid) + ".txt"
 
@@ -366,10 +344,13 @@ class LinearizabilityConsistency(Channel):
         if m.header == "w":
             data_args = m.content.split()
             tok, var, value = data_args[0], data_args[1], data_args[2]
-            # self.lock.acquire()
+            self.lock.acquire()
             if var in self.variables.variables:
                 self.variables.put(var, value, timepoint)
-            # self.lock.release()
+            try:
+                self.lock.release()
+            except:
+                print("unlocked")
 
             print("deliver message %s\n" % (str(m)))
             m = LinearizabilityConsistencyMessage(m.from_id, m.to_id, m.id, m.client_id, m.content, "w_ack");
@@ -381,27 +362,53 @@ class LinearizabilityConsistency(Channel):
                 m_log = LinearizabilityConsistencyMessage(from_id, m.to_id, m.id, m.client_id, ack_log, "w")
                 self.printLog(m_log, timepoint)
 
+            # send w_ack() back to client, and log w_ack()
+            if (m.id in self.messageID2client):
+                conn = self.messageID2client[m.id]
+                ack_message = var + " " + str(self.variables.variables[var])
+                m_ack = LinearizabilityConsistencyMessage(self.pid, m.client_id, m.id,m.client_id, ack_message, "w_ack")
+                self.unicast_tcp(self.pid, m_ack, conn)
+
+                # print w_ack log, sleep for 0.001s to create gap from w log
+                time.sleep(0.001)
+                self.printLog(m_ack, timepoint)
+
+
         elif m.header == "r":
             data_args = m.content.split()
             tok, var = data_args[0], data_args[1]
 
-            # self.lock.acquire()
+            self.lock.acquire()
             value = self.variables.variables[var]
             # only to update timepoint
             if var in self.variables.variables:
                 self.variables.put(var, value, timepoint)
-            # self.lock.release()
+            try:
+                self.lock.release()
+            except:
+                print("unlocked")
 
             print("deliver message %s\n" % (str(m)))
             message = tok + " " + var + " " + str(value)
             m = LinearizabilityConsistencyMessage(m.from_id, m.to_id, m.id, m.client_id, message, "r_ack");
             self.unicast(m, from_id)
 
-            # only sender print log
+            # only sender print r() log
             if (from_id == self.pid):
                 ack_log = var + " "  + str(0)
                 m_log = LinearizabilityConsistencyMessage(from_id, m.to_id, m.id, m.client_id, ack_log, "r")
                 self.printLog(m_log, timepoint)
+
+            # send r_ack() back to client, and log r_ack()
+            if (m.id in self.messageID2client):
+                conn = self.messageID2client[m.id]
+                ack_message = var + " " + str(self.variables.variables[var])
+                m_ack = LinearizabilityConsistencyMessage(self.pid, m.client_id, m.id, m.client_id, ack_message, "r_ack")
+                self.unicast_tcp(self.pid, m_ack, conn)
+
+                # print r_ack log, sleep for 0.001s to create gap from r log
+                time.sleep(0.001)
+                self.printLog(m_ack, timepoint)
 
     """
         Check our queue for sequence number,

@@ -90,7 +90,7 @@ class Server(multiprocessing.Process):
                 t_server_thread = Thread(target = self.server_thread, args=(conn,))
                 t_server_thread.start()
         except:
-            print("CTRL C occured")
+            print("run() Exceptions")
         finally:
             print("exit server thread")
             self.socket.close()
@@ -107,12 +107,18 @@ class Server(multiprocessing.Process):
         try:
             while True:
                 data, address = udp_socket.recvfrom(4096)
-                self.recv_from_replica(data)
+                t_replica_recv = Thread(target=self.replicaRecv, args=(data,))
+                t_replica_recv.start()
+
+            # self.recv_from_replica(data)
         except:
-            print("CTRL C occurred")
+            print("replica_thread Exceptions")
         finally:
             print("exit replica thread")
             udp_socket.close()
+
+    def replicaRecv(self,data):
+        self.recv_from_replica(data)
 
     # server thread function
     def server_thread(self, conn):
@@ -123,7 +129,7 @@ class Server(multiprocessing.Process):
                 print("receive client message %s" % (data))
                 self.recv_from_client(data, conn)
         except:
-            print("disconnected from client")
+            print("server_thread Exceptions")
         finally:
             print("Lost connection from client", address)
             conn.close()

@@ -22,7 +22,10 @@ class Channel(object):
         unicastTCP(int, socket, str)
     """
     def unicast_tcp(self, serverID, message):
-        delay_time = random.uniform(self.min_delay, self.max_delay)
+        # delay_time = random.uniform(self.min_delay, self.max_delay)
+
+        delay_time = 0
+
         m = Message(self.pid, serverID, message)
         print(m.send_str())
         print('delay unicastTCP with {0:.2f}s '.format(delay_time))
