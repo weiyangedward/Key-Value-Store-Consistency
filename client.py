@@ -42,7 +42,7 @@ class Client(multiprocessing.Process):
         for res in socket.getaddrinfo(self.ip, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM):
             af, socktype, proto, canonname, sa = res
             try:
-                self.socket = socket.socket(af, socktype, proto)
+                self.socket = socket.socket(af, socktype, proto) # init TCP socket
                 with self.socket_status.get_lock():
                     self.socket_status.value = 1
             except socket.error as msg:
@@ -51,7 +51,7 @@ class Client(multiprocessing.Process):
                     self.socket_status.value = 0
                 continue
             try:
-                self.socket.connect(sa)
+                self.socket.connect(sa) # connect to TCP socket
             except socket.error as msg:
                 self.socket.close()
                 self.socket = None

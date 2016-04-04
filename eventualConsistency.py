@@ -477,8 +477,8 @@ class EventualConsistency(Channel):
             self.senderRecv.add(m.id)
             if (m.id not in self.ackedMessage):
                 self.variables.setWAck(var, self.variables.getRAck(var) + 1)
-                # send w_ack to client if received ack >= R
-                if self.variables.getWAck(var) >= self.R and (id in self.senderRecv):
+                # send w_ack to client if received ack >= W
+                if self.variables.getWAck(var) >= self.W and (id in self.senderRecv):
                     self.ackedMessage.add(m.id)
                     if (m.id in self.messageID2client):
                         self.variables.setWAck(var, 0)

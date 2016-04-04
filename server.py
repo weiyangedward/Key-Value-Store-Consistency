@@ -31,13 +31,13 @@ class Server(multiprocessing.Process):
             af, socktype, proto, canonname, sa = res
             try:
                 print("establishing a socket")
-                self.socket = socket.socket(af, socktype, proto)  # establish a socket
+                self.socket = socket.socket(af, socktype, proto)  # init a socket
             except socket.error as msg:
                 self.socket = None
                 continue
             try:
                 print("binding to a socket")
-                self.socket.bind(sa) # build to a socket
+                self.socket.bind(sa) # bind to a socket
                 print("listening")
                 self.socket.listen(1) # listen
             except socket.error as msg:
@@ -102,6 +102,7 @@ class Server(multiprocessing.Process):
         address = self.address
         ip, port = self.ip, self.port
 
+        # init UDP socket
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_socket.bind(address)
         try:
@@ -146,7 +147,7 @@ def main():
     # replica server arguments
     parser = argparse.ArgumentParser(description="replica server")
     parser.add_argument("id", help="process id (1-10), default=1", type=int, default=1)
-    parser.add_argument("consistency", help="consistency model (eventual || linearizability), default=eventual",
+    parser.add_argument("consistency", help="consistency model (eventual/linearizability), default=eventual",
                         type=str, default='eventual')
     parser.add_argument("W", help="number of w_ack indicates finished, default=1", type=int, default='1')
     parser.add_argument("R", help="number of r_ack indicates finished, default=1", type=int, default='1')
