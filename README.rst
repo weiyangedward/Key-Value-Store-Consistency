@@ -13,7 +13,7 @@ Consistency Models
 ::
 
 	1. eventualConsistency.py
-	2. linearizability.py
+	2. linearizabilityConsistency.py
 
 
 To Run
