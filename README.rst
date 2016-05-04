@@ -1,6 +1,9 @@
 Key-Value Store Consistency
 ===========================
 
+Replication is a key to providing high availability and fault tolerance in distributed
+systems. Here we implemented a Key-Value Store with replicated servers to meet these two important properties. Our implementation meets the correctness criteria of linearizability and sequential consistency.
+
 Processes
 ----------
 ::
