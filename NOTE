@@ -1,0 +1,5 @@
+echo -n "START,2" | nc -4u -w1 127.0.0.1 1234
+
+le output_log2.txt | awk '{print "echo -n \""$1"\" | nc -4u -w1 127.0.0.1 1234"}' |cat
+
+le output_log2_eventual.txt | while read line ; do echo -n "$line" | nc -4u -w1 127.0.0.1 1234 ; done

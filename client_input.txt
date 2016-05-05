@@ -1,0 +1,3 @@
+get x
+put x 1
+dump
